@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "SentinelGate Enterprise Web Control (Pilot)",
+  "description": "Managed browser policy for websites, uploads, and downloads. Requires locally installed SentinelGate Agent.",
+  "version": "0.1.0",
+  "permissions": ["storage", "alarms", "declarativeNetRequest", "downloads", "webNavigation"],
+  "host_permissions": ["http://127.0.0.1:8898/*", "<all_urls>"],
+  "background": {"service_worker": "background.js"},
+  "options_page": "options.html",
+  "action": {"default_title": "SentinelGate Web Control - Configure in extension options"},
+  "content_scripts": [{"matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_start"}]
+}

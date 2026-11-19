@@ -1,0 +1,8 @@
+{
+  "server_url": "http://127.0.0.1:8899",
+  "device_id": "dev-FROM-CONSOLE",
+  "device_token": "PASTE_DEVICE_TOKEN_FROM_CONSOLE",
+  "bridge_token": "CHANGE_THIS_TO_A_RANDOM_UNIQUE_SECRET_32_CHARS",
+  "downloads_dir": "%USERPROFILE%\\Downloads",
+  "poll_seconds": 15
+}
