@@ -105,3 +105,11 @@ Run tests using `py -3 -m unittest discover -s tests -v` from the package root.
 ## Build / licensing
 
 This is a working **source-code pilot** and Windows launcher scripts, **not** a compiled `.exe` / `.msi`, Windows driver, signed Windows service, or production DLP product. No external Python package dependencies are required. For production, package and sign Windows binaries only after architecture review, formal testing and hardening.
+
+## Developer workflow: Superpowers (NOT an endpoint runtime dependency)
+
+The repository includes a reviewed, commit-pinned git submodule at tools/superpowers from https://github.com/obra/superpowers. It provides an AI-agent engineering methodology (brainstorming, designs, TDD, code review, verified releases), **not** antivirus, web filtering or data-loss prevention itself. Cloning the submodule does not activate the coding-agent plugin.
+
+On Windows run: ./scripts/setup-superpowers.ps1 (for an authorized local developer workstation). On macOS/Linux: bash scripts/setup-superpowers.sh. Install the official Claude Code Superpowers plugin inside Claude Code using /plugin install superpowers@claude-plugins-official, or install it in Codex via the official /plugins interface. See docs/superpowers/INTEGRATION.md, CLAUDE.md, AGENTS.md, docs/security/THREAT_MODEL.md and docs/security/RELEASE_GATES.md.
+
+Developers should use a clean worktree, approved design, task-level plan, red/green tests, independent review and fresh verification results. Security review and Windows end-to-end testing are still required before a company rollout.

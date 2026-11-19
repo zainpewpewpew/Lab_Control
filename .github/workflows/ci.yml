@@ -1,0 +1,48 @@
+name: SentinelGate quality gates
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Python and extension syntax (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: '3.11'
+          - os: windows-latest
+            python-version: '3.13'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout including pinned Superpowers submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup Node.js for extension syntax checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify reviewed Superpowers source pin
+        run: python scripts/verify_superpowers.py --require-checkout
+      - name: Run full Python integration and engineering tests
+        run: python -m unittest discover -s tests -v
+      - name: Compile Python modules
+        run: python -m compileall -q agent console scripts tests
+      - name: Check Chromium extension JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for script in extension/*.js; do
+            node --check "$script"
+          done
+      - name: Parse extension manifest JSON
+        run: python -c "import json,pathlib; json.loads(pathlib.Path('extension/manifest.json').read_text(encoding='utf-8'))"

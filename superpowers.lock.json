@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/obra/superpowers.git",
+  "revision": "22f0b463e7a5e579904dd6211a520321035526f7",
+  "upstream_version_at_pin": "7.0.2",
+  "purpose": "Developer-agent workflow dependency only; never imported into SentinelGate runtime"
+}
