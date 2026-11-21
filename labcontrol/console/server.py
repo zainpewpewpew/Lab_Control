@@ -132,6 +132,15 @@ CREATE TABLE IF NOT EXISTS policy(
     updated_at INTEGER NOT NULL,
     body TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS policy_history(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    updated_by TEXT NOT NULL,
+    body TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_policy_history_device_ts ON policy_history(device_id, updated_at DESC);
 CREATE TABLE IF NOT EXISTS alert_rules(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -219,7 +228,8 @@ async def evaluate_alerts(device_id: str, kind: str, severity: int, data: dict[s
             f"Severity: {severity}\n"
             f"Data: <code>{json.dumps(data, default=str)[:900]}</code>"
         )
-        await telegram_send(text)
+        # Fire-and-forget: a slow Telegram API must not stall the agent heartbeat.
+        asyncio.create_task(telegram_send(text))
 
 
 class EnrollReq(BaseModel):
@@ -427,12 +437,33 @@ async def put_policy(device_id: str, body: dict[str, Any], user: str = Depends(a
             raise HTTPException(404, 'device not found')
         row = conn.execute('SELECT version FROM policy WHERE device_id=?', (device_id,)).fetchone()
         v = (row['version'] + 1) if row else 1
+        now = int(time.time())
+        body_json = json.dumps(body)
+        conn.execute(
+            'INSERT INTO policy_history(device_id, version, updated_at, updated_by, body) VALUES(?,?,?,?,?)',
+            (device_id, v, now, user, body_json),
+        )
         conn.execute(
             'INSERT INTO policy(device_id, version, updated_at, body) VALUES(?,?,?,?) '
             'ON CONFLICT(device_id) DO UPDATE SET version=excluded.version, updated_at=excluded.updated_at, body=excluded.body',
-            (device_id, v, int(time.time()), json.dumps(body)),
+            (device_id, v, now, body_json),
         )
     return {'ok': True, 'version': v}
+
+
+@app.get('/admin/policy/{device_id}/history')
+async def policy_history(device_id: str, user: str = Depends(admin_required), limit: int = 50):
+    limit = max(1, min(limit, 500))
+    with db() as conn:
+        rows = conn.execute(
+            'SELECT version, updated_at, updated_by, body FROM policy_history '
+            'WHERE device_id=? ORDER BY id DESC LIMIT ?',
+            (device_id, limit),
+        ).fetchall()
+    return [
+        {'version': r['version'], 'updated_at': r['updated_at'], 'updated_by': r['updated_by'], 'body': json.loads(r['body'])}
+        for r in rows
+    ]
 
 
 @app.get('/admin/alert-rules')

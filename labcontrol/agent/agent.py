@@ -17,6 +17,7 @@ import logging.handlers
 import os
 import platform
 import queue
+import re
 import secrets
 import socket
 import subprocess
@@ -46,6 +47,87 @@ LOG_FILE = DATA_DIR / 'agent.log'
 QUEUE_FILE = DATA_DIR / 'events.jsonl'
 
 log = logging.getLogger('labcontrol')
+
+
+# Scrub process cmdline so that telemetry never ships credentials passed as
+# argv. Kill a whole argv element whenever it mentions something credential-
+# shaped; the next element may be the credential itself, so drop it too.
+# Pattern covers common CLI conventions across curl/http/az/gcloud/psql/etc.
+_SENSITIVE_RE = re.compile(
+    r'(?i)(authorization|bearer|password|passwd|pwd|token|apikey|api[_-]?key|secret|credential|'
+    r'client[_-]?secret|access[_-]?key|private[_-]?key|session[_-]?id)'
+)
+_SENSITIVE_FLAG_RE = re.compile(
+    r'(?i)^(--?(?:p|pw|pass|password|passwd|token|api[_-]?key|secret|bearer|auth)(?:=|$))'
+)
+
+
+def scrub_cmdline(cmdline: list[str]) -> list[str]:
+    out: list[str] = []
+    drop_next = False
+    for a in cmdline:
+        if not isinstance(a, str):
+            out.append(str(a))
+            continue
+        if drop_next:
+            out.append('***scrubbed***')
+            drop_next = False
+            continue
+        if _SENSITIVE_FLAG_RE.match(a):
+            # Case 1: --password=foo. Case 2: --password (next arg is the value).
+            if '=' in a:
+                key, _ = a.split('=', 1)
+                out.append(f'{key}=***scrubbed***')
+            else:
+                out.append(a)
+                drop_next = True
+            continue
+        if _SENSITIVE_RE.search(a):
+            out.append('***scrubbed***')
+            continue
+        out.append(a)
+    return out
+
+
+def enumerate_usb_devices(timeout: float = 10.0) -> list[dict[str, str]]:
+    """Return [{name, pnp}] for USB PnP devices.
+
+    Uses PowerShell Get-PnpDevice. wmic is deprecated and removed from
+    Windows 11 24H2+ images, so we never shell out to it.
+    """
+    if not IS_WINDOWS:
+        return []
+    script = (
+        "Get-PnpDevice -PresentOnly | "
+        "Where-Object { $_.InstanceId -like 'USB*' } | "
+        "Select-Object -Property FriendlyName,InstanceId | "
+        "ConvertTo-Json -Compress -Depth 2"
+    )
+    try:
+        raw = subprocess.check_output(
+            ['powershell.exe', '-NoProfile', '-NonInteractive',
+             '-ExecutionPolicy', 'Bypass', '-Command', script],
+            stderr=subprocess.DEVNULL, timeout=timeout,
+        ).decode('utf-8', errors='ignore').strip()
+    except Exception as exc:
+        log.warning('Get-PnpDevice failed: %s', exc)
+        return []
+    if not raw:
+        return []
+    try:
+        doc = json.loads(raw)
+    except Exception:
+        return []
+    items = doc if isinstance(doc, list) else [doc]
+    out: list[dict[str, str]] = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        pnp = str(it.get('InstanceId') or '').strip()
+        if not pnp:
+            continue
+        out.append({'name': str(it.get('FriendlyName') or '').strip(), 'pnp': pnp})
+    return out
 
 
 def setup_log() -> None:
@@ -245,7 +327,7 @@ class Collector(threading.Thread):
                     'name': info.get('name') or '',
                     'user': info.get('username') or '',
                     'exe': info.get('exe') or '',
-                    'cmdline': (info.get('cmdline') or [])[:12],
+                    'cmdline': scrub_cmdline((info.get('cmdline') or [])[:12]),
                     'started': int(info.get('create_time') or 0),
                 }
                 new_procs.append(row)
@@ -283,28 +365,15 @@ class Collector(threading.Thread):
     def _scan_usb(self) -> None:
         if not IS_WINDOWS:
             return
-        try:
-            out = subprocess.check_output(
-                ['wmic', 'path', 'Win32_PnPEntity', 'where', "PNPDeviceID like 'USB%'",
-                 'get', 'PNPDeviceID,Name', '/format:csv'],
-                stderr=subprocess.DEVNULL, timeout=8,
-            ).decode(errors='ignore')
-        except Exception:
+        items = enumerate_usb_devices(timeout=8)
+        if not items:
             return
         current = set()
         parsed: dict[str, str] = {}
-        for line in out.splitlines():
-            line = line.strip()
-            if not line or line.lower().startswith('node') or ',' not in line:
-                continue
-            parts = line.split(',')
-            if len(parts) < 3:
-                continue
-            name, pnp = parts[-2].strip(), parts[-1].strip()
-            if not pnp:
-                continue
+        for it in items:
+            pnp = it['pnp']
             current.add(pnp)
-            parsed[pnp] = name
+            parsed[pnp] = it['name']
         if self._first_pass:
             self.seen_usb = current
             return
@@ -452,22 +521,7 @@ class CommandRunner:
     def _collect_usb_list(self) -> tuple[bool, str]:
         if not IS_WINDOWS:
             return False, 'windows only'
-        try:
-            out = subprocess.check_output(
-                ['wmic', 'path', 'Win32_PnPEntity', 'where', "PNPDeviceID like 'USB%'",
-                 'get', 'PNPDeviceID,Name', '/format:csv'],
-                stderr=subprocess.DEVNULL, timeout=10,
-            ).decode(errors='ignore')
-        except Exception as exc:
-            return False, f'wmic failed: {exc}'
-        rows = []
-        for line in out.splitlines():
-            line = line.strip()
-            if not line or line.lower().startswith('node') or ',' not in line:
-                continue
-            parts = line.split(',')
-            if len(parts) >= 3:
-                rows.append({'name': parts[-2].strip(), 'pnp': parts[-1].strip()})
+        rows = enumerate_usb_devices(timeout=10)
         self.sink.push('usb_snapshot', 0, {'count': len(rows), 'items': rows[:400]})
         return True, f'{len(rows)} usb devices'
 
