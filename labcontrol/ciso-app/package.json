@@ -17,6 +17,7 @@
     "appId": "com.yourcorp.labcontrol.ciso",
     "productName": "LabControl",
     "directories": { "output": "dist" },
+    "afterPack": "./scripts/strip-ats.js",
     "files": [
       "main.js",
       "preload.js",
@@ -34,10 +35,7 @@
         "NSMicrophoneUsageDescription": null,
         "NSBluetoothAlwaysUsageDescription": null,
         "NSBluetoothPeripheralUsageDescription": null,
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": false,
-          "NSAllowsLocalNetworking": true
-        }
+        "NSAppTransportSecurity": null
       }
     },
     "win": {
