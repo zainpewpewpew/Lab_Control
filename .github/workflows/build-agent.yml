@@ -34,6 +34,14 @@ jobs:
       - name: Build agent.exe (PyInstaller)
         run: python -m PyInstaller agent.spec --noconfirm --clean
 
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          $nsis = "C:\Program Files (x86)\NSIS\makensis.exe"
+          if (-not (Test-Path $nsis)) { throw "makensis not found after install" }
+          & $nsis /VERSION
+
       - name: Fetch console cert (optional)
         shell: pwsh
         run: |
