@@ -1,0 +1,47 @@
+{
+  "name": "labcontrol-ciso",
+  "version": "0.1.0",
+  "description": "LabControl CISO desktop console (native Mac/Windows/Linux shell)",
+  "main": "main.js",
+  "author": "LabControl",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.yourcorp.labcontrol.ciso",
+    "productName": "LabControl",
+    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "setup.html",
+      "assets/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "linux": { "target": ["AppImage"] },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "31.4.0",
+    "electron-builder": "24.13.3"
+  }
+}

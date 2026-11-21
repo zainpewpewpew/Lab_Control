@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LabControl — Server Settings</title>
+<style>
+:root { --bg:#0b1020; --panel:#121a33; --border:#222c4d; --fg:#e6ecff; --mut:#9aa6cc; --acc:#7cf; }
+body { margin:0; padding:22px; background:var(--bg); color:var(--fg);
+       font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; }
+h1 { font-size:14px; letter-spacing:1px; color:var(--acc); margin:0 0 14px 0; }
+label { display:block; margin:12px 0 4px; color:var(--mut); font-size:12px; letter-spacing:0.5px; }
+input, select { width:100%; background:#0a0f26; color:var(--fg); border:1px solid var(--border);
+                border-radius:4px; padding:7px 9px; font:inherit; box-sizing:border-box; }
+.row { display:flex; gap:10px; align-items:center; margin-top:14px; }
+.row input[type=checkbox] { width:16px; height:16px; }
+.actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+button { background:#20306c; color:var(--fg); border:1px solid #2a3c80; border-radius:4px;
+         padding:8px 16px; cursor:pointer; font:inherit; }
+button.primary { background:#1a5c2a; border-color:#2a7a3c; }
+button:hover { filter:brightness(1.1); }
+.hint { color:var(--mut); font-size:11px; margin-top:6px; }
+</style>
+</head>
+<body>
+<h1>LabControl — Server Settings</h1>
+
+<label for="url">Console URL</label>
+<input id="url" type="url" placeholder="https://console.your.corp:8443" autocomplete="off">
+<div class="hint">HTTPS required. Self-signed is accepted for this URL only.</div>
+
+<label for="sev">Native notification threshold</label>
+<select id="sev">
+  <option value="0">All events (sev 0)</option>
+  <option value="2">Info and above (sev 2)</option>
+  <option value="4" selected>Warning and above (sev 4)</option>
+  <option value="6">High and above (sev 6)</option>
+  <option value="8">Critical only (sev 8)</option>
+</select>
+
+<div class="row">
+  <input id="mini" type="checkbox">
+  <label for="mini" style="margin:0">Start minimized to tray</label>
+</div>
+
+<div class="actions">
+  <button id="cancel">Cancel</button>
+  <button id="save" class="primary">Save</button>
+</div>
+
+<script>
+window.lc.settings.onCurrent(cfg => {
+  if (cfg.serverUrl) document.getElementById('url').value = cfg.serverUrl;
+  document.getElementById('sev').value = String(cfg.notifyMinSeverity ?? 4);
+  document.getElementById('mini').checked = !!cfg.startMinimized;
+});
+document.getElementById('cancel').addEventListener('click', () => window.close());
+document.getElementById('save').addEventListener('click', () => {
+  const url = document.getElementById('url').value.trim();
+  if (!/^https:\/\//i.test(url)) { alert('Server URL must start with https://'); return; }
+  window.lc.settings.save({
+    serverUrl: url.replace(/\/+$/,''),
+    notifyMinSeverity: parseInt(document.getElementById('sev').value, 10),
+    startMinimized: document.getElementById('mini').checked,
+  });
+});
+</script>
+</body>
+</html>

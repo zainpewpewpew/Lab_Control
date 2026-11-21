@@ -1,5 +1,20 @@
 __pycache__/
 *.pyc
+
+# Legacy SentinelGate
 console/state/
 agent/state/
 agent/agent-config.json
+
+# LabControl secrets and generated artifacts
+labcontrol/console/.env
+labcontrol/console/state/
+labcontrol/console/venv/
+labcontrol/agent/dist/
+labcontrol/agent/build/
+labcontrol/agent/buildvenv/
+labcontrol/agent/*.exe
+labcontrol/agent/LabControl-Agent-Setup.exe
+labcontrol/ciso-app/node_modules/
+labcontrol/ciso-app/dist/
+labcontrol/dist/

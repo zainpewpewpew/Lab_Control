@@ -1,0 +1,64 @@
+name: build-labcontrol-agent
+
+on:
+  push:
+    paths:
+      - 'labcontrol/agent/**'
+      - '.github/workflows/build-agent.yml'
+  workflow_dispatch:
+
+jobs:
+  windows-setup-exe:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: labcontrol/agent
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Python 3.11 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller==6.10.0
+
+      - name: Build agent.exe (PyInstaller)
+        run: python -m PyInstaller agent.spec --noconfirm --clean
+
+      - name: Fetch console cert (optional)
+        shell: pwsh
+        run: |
+          if (Test-Path ..\console\state\cert.pem) {
+            Copy-Item ..\console\state\cert.pem .\console-cert.pem
+          }
+
+      - name: Build LabControl-Agent-Setup.exe (NSIS)
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\NSIS\makensis.exe" /V2 /DAGENT_EXE="dist\agent.exe" /DINSTALL_PS1="install_service.ps1" installer.nsi
+
+      - name: Hash and inspect
+        run: |
+          Get-Item LabControl-Agent-Setup.exe | Select-Object FullName,Length,LastWriteTime
+          Get-FileHash LabControl-Agent-Setup.exe -Algorithm SHA256
+
+      - name: Upload setup.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: LabControl-Agent-Setup
+          path: labcontrol/agent/LabControl-Agent-Setup.exe
+
+      - name: Upload raw agent.exe (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: LabControl-Agent-raw-exe
+          path: labcontrol/agent/dist/agent.exe

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LabControl - CISO Console</title>
+<style>
+:root { --bg:#0b1020; --panel:#121a33; --border:#222c4d; --fg:#e6ecff; --mut:#9aa6cc; --ok:#6cf; --warn:#fc6; --err:#f66; --acc:#7cf; }
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 ui-monospace,Menlo,Consolas,monospace}
+header{display:flex;gap:12px;align-items:center;padding:10px 14px;background:#0a0f26;border-bottom:1px solid var(--border)}
+header h1{font-size:15px;margin:0;letter-spacing:1px;color:var(--acc)}
+header .live{color:var(--mut);margin-left:auto}
+.grid{display:grid;grid-template-columns:320px 1fr 380px;gap:10px;padding:10px;height:calc(100vh - 44px)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;display:flex;flex-direction:column;overflow:hidden}
+.panel h2{margin:0;padding:8px 12px;font-size:12px;letter-spacing:1px;color:var(--mut);border-bottom:1px solid var(--border);text-transform:uppercase}
+.panel .body{overflow:auto;padding:4px 0;flex:1}
+.row{padding:8px 12px;border-bottom:1px solid #1a2244;cursor:pointer}
+.row:hover{background:#19224a}
+.row.active{background:#1c2a5c}
+.dev-name{font-weight:600}
+.dev-meta{color:var(--mut);font-size:12px}
+.event{padding:6px 12px;border-bottom:1px solid #1a2244;font-size:12.5px}
+.event .k{color:var(--acc)} .event .sev{float:right;padding:0 6px;border-radius:3px;font-size:11px}
+.sev-0,.sev-1{background:#1a3a5c;color:#9cf} .sev-2,.sev-3{background:#5c4a0f;color:#fc6}
+.sev-4,.sev-5{background:#5c2f1a;color:#fa7} .sev-6,.sev-7,.sev-8,.sev-9,.sev-10{background:#5c1a1a;color:#f99}
+.event .t{color:var(--mut);font-size:11px}
+.event pre{margin:4px 0 0 0;white-space:pre-wrap;word-break:break-word;color:#cfd6ea;font-size:12px}
+.actions{padding:10px 12px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid var(--border)}
+.actions button{background:#20306c;color:var(--fg);border:1px solid #2a3c80;border-radius:4px;padding:6px 10px;cursor:pointer;font:inherit}
+.actions button:hover{background:#2a3c80}
+.actions button.danger{background:#5c1a1a;border-color:#7a2525} .actions button.danger:hover{background:#7a2525}
+.policy{padding:10px 12px}
+.policy textarea{width:100%;height:220px;background:#0a0f26;color:var(--fg);border:1px solid var(--border);border-radius:4px;font:12px ui-monospace,Menlo,Consolas,monospace;padding:6px}
+#login{position:fixed;inset:0;background:rgba(5,8,20,.95);display:flex;align-items:center;justify-content:center;z-index:9}
+#login form{background:var(--panel);padding:24px;border-radius:8px;border:1px solid var(--border);display:flex;flex-direction:column;gap:10px;width:300px}
+#login input{background:#0a0f26;color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:8px;font:inherit}
+#login button{background:#20306c;color:var(--fg);border:1px solid #2a3c80;border-radius:4px;padding:8px;cursor:pointer;font:inherit}
+#login .err{color:var(--err);font-size:12px;min-height:16px}
+.badge{display:inline-block;background:#1a3a5c;color:#9cf;padding:1px 6px;border-radius:3px;font-size:11px;margin-left:6px}
+.badge.off{background:#3a1a1a;color:#f99}
+.empty{color:var(--mut);padding:12px}
+input.cmdarg{width:100%;margin-top:4px;background:#0a0f26;color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font:12px ui-monospace,Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+<header>
+  <h1>LABCONTROL</h1>
+  <span id="user" class="dev-meta"></span>
+  <span class="live">stream: <span id="stream-state" class="badge off">disconnected</span></span>
+  <button id="logout" style="margin-left:12px;background:transparent;color:var(--mut);border:1px solid var(--border);border-radius:4px;padding:4px 10px;cursor:pointer">logout</button>
+</header>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Devices</h2>
+    <div id="devices" class="body"></div>
+  </div>
+  <div class="panel">
+    <h2>Event feed <span id="feed-filter" class="dev-meta"></span></h2>
+    <div id="events" class="body"></div>
+  </div>
+  <div class="panel">
+    <h2>Actions &amp; Policy</h2>
+    <div class="actions">
+      <div id="target" class="dev-meta">No device selected.</div>
+      <button data-a="collect_proclist">Collect process list</button>
+      <button data-a="lock_workstation">Lock workstation</button>
+      <button data-a="logoff">Logoff user</button>
+      <button data-a="reboot" class="danger">Reboot</button>
+      <button data-a="shutdown" class="danger">Shutdown</button>
+      <div>
+        <input id="runcmd" class="cmdarg" placeholder='run_cmd: e.g. "ipconfig /all"'>
+        <button data-a="run_cmd" style="margin-top:4px">Run cmd</button>
+      </div>
+      <div>
+        <input id="killpid" class="cmdarg" placeholder='kill_process pid'>
+        <button data-a="kill_process" style="margin-top:4px">Kill process</button>
+      </div>
+    </div>
+    <div class="policy">
+      <h2 style="padding:0 0 6px 0;border:none">Policy JSON</h2>
+      <textarea id="policy"></textarea>
+      <button id="save-policy" style="margin-top:6px;background:#1a5c2a;border:1px solid #2a7a3c;color:var(--fg);border-radius:4px;padding:6px 10px;cursor:pointer;font:inherit">Save policy</button>
+    </div>
+  </div>
+</div>
+
+<div id="login">
+  <form id="login-form">
+    <h3 style="margin:0;color:var(--acc)">LabControl sign-in</h3>
+    <input name="username" placeholder="admin" autocomplete="username" required>
+    <input name="password" type="password" placeholder="password" autocomplete="current-password" required>
+    <button type="submit">Enter</button>
+    <div class="err" id="login-err"></div>
+  </form>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let selectedDevice = null;
+let devicesMap = {};
+
+async function api(path, opts={}) {
+  const r = await fetch(path, {credentials: 'same-origin', ...opts});
+  if (r.status === 401) { showLogin(); throw new Error('unauth'); }
+  if (!r.ok) throw new Error(await r.text());
+  return r.status === 204 ? null : r.json();
+}
+
+function showLogin() { $('#login').style.display = 'flex'; }
+function hideLogin() { $('#login').style.display = 'none'; }
+
+$('#login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/admin/login', {method:'POST', body: fd, credentials:'same-origin'});
+  if (!r.ok) { $('#login-err').textContent = 'Login failed.'; return; }
+  hideLogin(); await bootstrap();
+});
+
+$('#logout').addEventListener('click', async () => {
+  await fetch('/admin/logout', {method:'POST', credentials:'same-origin'});
+  location.reload();
+});
+
+function fmtTime(ts) {
+  if (!ts) return '-';
+  return new Date(ts * 1000).toLocaleString();
+}
+
+function renderDevices(list) {
+  devicesMap = {};
+  const el = $('#devices');
+  if (!list.length) { el.innerHTML = '<div class="empty">No devices enrolled yet.</div>'; return; }
+  el.innerHTML = '';
+  for (const d of list) {
+    devicesMap[d.device_id] = d;
+    const row = document.createElement('div');
+    row.className = 'row' + (d.device_id === selectedDevice ? ' active' : '');
+    row.dataset.id = d.device_id;
+    row.innerHTML =
+      `<div class="dev-name">${d.hostname || '(no hostname)'}</div>
+       <div class="dev-meta">${d.employee || ''} · ${d.os_build || ''}</div>
+       <div class="dev-meta">last seen: ${fmtTime(d.last_seen)}</div>`;
+    row.addEventListener('click', () => selectDevice(d.device_id));
+    el.appendChild(row);
+  }
+}
+
+function renderEvents(events) {
+  const el = $('#events');
+  if (!events.length) { el.innerHTML = '<div class="empty">No events.</div>'; return; }
+  el.innerHTML = '';
+  for (const e of events) prependEvent(e, el);
+}
+
+function prependEvent(e, container) {
+  container = container || $('#events');
+  const div = document.createElement('div');
+  div.className = 'event';
+  const host = e.hostname || devicesMap[e.device_id]?.hostname || e.device_id;
+  div.innerHTML =
+    `<span class="k">${e.kind}</span>
+     <span class="sev sev-${e.severity}">sev ${e.severity}</span>
+     <div class="t">${fmtTime(e.ts)} · ${host}</div>
+     <pre>${JSON.stringify(e.data, null, 2)}</pre>`;
+  if (container.firstChild) container.insertBefore(div, container.firstChild);
+  else container.appendChild(div);
+  while (container.childElementCount > 500) container.removeChild(container.lastChild);
+}
+
+async function selectDevice(id) {
+  selectedDevice = id;
+  document.querySelectorAll('#devices .row').forEach(r => r.classList.toggle('active', r.dataset.id === id));
+  $('#target').textContent = 'Target: ' + id;
+  $('#feed-filter').textContent = '(' + (devicesMap[id]?.hostname || id) + ')';
+  const evs = await api('/admin/events?device_id=' + encodeURIComponent(id));
+  renderEvents(evs);
+  const pol = await api('/admin/policy/' + encodeURIComponent(id));
+  $('#policy').value = JSON.stringify(pol.body, null, 2);
+}
+
+async function refreshDevices() {
+  const devs = await api('/admin/devices');
+  renderDevices(devs);
+}
+
+document.querySelectorAll('[data-a]').forEach(btn => btn.addEventListener('click', async () => {
+  if (!selectedDevice) { alert('select a device first'); return; }
+  const action = btn.dataset.a;
+  const args = {};
+  if (action === 'run_cmd') args.cmd = $('#runcmd').value.trim();
+  if (action === 'kill_process') args.pid = parseInt($('#killpid').value.trim() || '0', 10);
+  if (['reboot','shutdown','logoff'].includes(action) &&
+      !confirm(action + ' this endpoint?')) return;
+  await api('/admin/commands', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({device_id: selectedDevice, action, args}),
+  });
+  btn.animate([{background:'#2a7a3c'},{background:''}], {duration:600});
+}));
+
+$('#save-policy').addEventListener('click', async () => {
+  if (!selectedDevice) { alert('select a device'); return; }
+  let body;
+  try { body = JSON.parse($('#policy').value); }
+  catch (e) { alert('invalid JSON: ' + e.message); return; }
+  const r = await api('/admin/policy/' + encodeURIComponent(selectedDevice), {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  alert('policy saved, version ' + r.version);
+});
+
+function startStream() {
+  const es = new EventSource('/admin/stream', {withCredentials:true});
+  const state = $('#stream-state');
+  es.onopen = () => { state.textContent = 'live'; state.className = 'badge'; };
+  es.onerror = () => { state.textContent = 'disconnected'; state.className = 'badge off'; };
+  es.onmessage = ev => {
+    try {
+      const payload = JSON.parse(ev.data);
+      prependEvent(payload);
+      if (payload.device_id in devicesMap) {
+        devicesMap[payload.device_id].last_seen = payload.ts;
+      } else {
+        refreshDevices();
+      }
+    } catch {}
+  };
+}
+
+async function bootstrap() {
+  try {
+    const me = await api('/admin/me');
+    $('#user').textContent = me.user;
+    hideLogin();
+    await refreshDevices();
+    renderEvents(await api('/admin/events?limit=100'));
+    startStream();
+    setInterval(refreshDevices, 15000);
+  } catch (e) { /* login shown */ }
+}
+
+bootstrap();
+</script>
+</body>
+</html>
