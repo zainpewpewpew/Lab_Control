@@ -28,7 +28,17 @@
       "category": "public.app-category.business",
       "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
       "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSCameraUsageDescription": null,
+        "NSMicrophoneUsageDescription": null,
+        "NSBluetoothAlwaysUsageDescription": null,
+        "NSBluetoothPeripheralUsageDescription": null,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],

@@ -69,10 +69,6 @@ input.cmdarg{width:100%;margin-top:4px;background:#0a0f26;color:var(--fg);border
       <button data-a="reboot" class="danger">Reboot</button>
       <button data-a="shutdown" class="danger">Shutdown</button>
       <div>
-        <input id="runcmd" class="cmdarg" placeholder='run_cmd: e.g. "ipconfig /all"'>
-        <button data-a="run_cmd" style="margin-top:4px">Run cmd</button>
-      </div>
-      <div>
         <input id="killpid" class="cmdarg" placeholder='kill_process pid'>
         <button data-a="kill_process" style="margin-top:4px">Kill process</button>
       </div>
@@ -128,42 +124,51 @@ function fmtTime(ts) {
   return new Date(ts * 1000).toLocaleString();
 }
 
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+
+function clearNode(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+
 function renderDevices(list) {
   devicesMap = {};
-  const el = $('#devices');
-  if (!list.length) { el.innerHTML = '<div class="empty">No devices enrolled yet.</div>'; return; }
-  el.innerHTML = '';
+  const root = $('#devices');
+  clearNode(root);
+  if (!list.length) { root.appendChild(el('div', 'empty', 'No devices enrolled yet.')); return; }
   for (const d of list) {
     devicesMap[d.device_id] = d;
-    const row = document.createElement('div');
-    row.className = 'row' + (d.device_id === selectedDevice ? ' active' : '');
+    const row = el('div', 'row' + (d.device_id === selectedDevice ? ' active' : ''));
     row.dataset.id = d.device_id;
-    row.innerHTML =
-      `<div class="dev-name">${d.hostname || '(no hostname)'}</div>
-       <div class="dev-meta">${d.employee || ''} · ${d.os_build || ''}</div>
-       <div class="dev-meta">last seen: ${fmtTime(d.last_seen)}</div>`;
+    row.appendChild(el('div', 'dev-name', d.hostname || '(no hostname)'));
+    row.appendChild(el('div', 'dev-meta', (d.employee || '') + ' · ' + (d.os_build || '')));
+    row.appendChild(el('div', 'dev-meta', 'last seen: ' + fmtTime(d.last_seen)));
     row.addEventListener('click', () => selectDevice(d.device_id));
-    el.appendChild(row);
+    root.appendChild(row);
   }
 }
 
 function renderEvents(events) {
-  const el = $('#events');
-  if (!events.length) { el.innerHTML = '<div class="empty">No events.</div>'; return; }
-  el.innerHTML = '';
-  for (const e of events) prependEvent(e, el);
+  const root = $('#events');
+  clearNode(root);
+  if (!events.length) { root.appendChild(el('div', 'empty', 'No events.')); return; }
+  for (const e of events) prependEvent(e, root);
 }
 
 function prependEvent(e, container) {
   container = container || $('#events');
-  const div = document.createElement('div');
-  div.className = 'event';
   const host = e.hostname || devicesMap[e.device_id]?.hostname || e.device_id;
-  div.innerHTML =
-    `<span class="k">${e.kind}</span>
-     <span class="sev sev-${e.severity}">sev ${e.severity}</span>
-     <div class="t">${fmtTime(e.ts)} · ${host}</div>
-     <pre>${JSON.stringify(e.data, null, 2)}</pre>`;
+  const sev = Number(e.severity) | 0;
+  const div = el('div', 'event');
+  div.appendChild(el('span', 'k', e.kind));
+  div.appendChild(el('span', 'sev sev-' + sev, 'sev ' + sev));
+  div.appendChild(el('div', 't', fmtTime(e.ts) + ' · ' + host));
+  let bodyText;
+  try { bodyText = JSON.stringify(e.data, null, 2); }
+  catch { bodyText = '(unserializable data)'; }
+  div.appendChild(el('pre', null, bodyText));
   if (container.firstChild) container.insertBefore(div, container.firstChild);
   else container.appendChild(div);
   while (container.childElementCount > 500) container.removeChild(container.lastChild);
@@ -189,7 +194,6 @@ document.querySelectorAll('[data-a]').forEach(btn => btn.addEventListener('click
   if (!selectedDevice) { alert('select a device first'); return; }
   const action = btn.dataset.a;
   const args = {};
-  if (action === 'run_cmd') args.cmd = $('#runcmd').value.trim();
   if (action === 'kill_process') args.pid = parseInt($('#killpid').value.trim() || '0', 10);
   if (['reboot','shutdown','logoff'].includes(action) &&
       !confirm(action + ' this endpoint?')) return;

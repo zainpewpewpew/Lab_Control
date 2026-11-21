@@ -52,6 +52,25 @@ if not ENROLL_SECRET:
 signer = URLSafeSerializer(SESSION_SECRET, salt='labcontrol-session')
 
 
+# Per-IP rate limiting (in-memory; sufficient for single-worker pilot).
+_rate_state: dict[str, list[float]] = {}
+
+
+def rate_limit_check(key: str, max_hits: int, window_sec: int) -> bool:
+    now = time.time()
+    hits = [t for t in _rate_state.get(key, []) if now - t < window_sec]
+    if len(hits) >= max_hits:
+        _rate_state[key] = hits
+        return False
+    hits.append(now)
+    _rate_state[key] = hits
+    return True
+
+
+def client_ip(request: Request) -> str:
+    return (request.client.host if request.client else 'unknown') or 'unknown'
+
+
 def hash_password(pw: str, salt: bytes) -> bytes:
     return hashlib.scrypt(pw.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
 
@@ -138,9 +157,9 @@ def load_signing_key() -> Ed25519PrivateKey:
 SIGNING_KEY: Ed25519PrivateKey = load_signing_key()
 
 
-def sign_command(device_id: str, action: str, args: dict[str, Any], nonce: str) -> bytes:
+def sign_command(device_id: str, action: str, args: dict[str, Any], nonce: str, issued_at: int) -> bytes:
     payload = json.dumps(
-        {'device_id': device_id, 'action': action, 'args': args, 'nonce': nonce},
+        {'device_id': device_id, 'action': action, 'args': args, 'nonce': nonce, 'issued_at': issued_at},
         sort_keys=True, separators=(',', ':')
     ).encode()
     return SIGNING_KEY.sign(payload)
@@ -309,7 +328,9 @@ app.mount('/static', StaticFiles(directory=str(WEB_DIR)), name='static')
 
 
 @app.post('/admin/login')
-async def admin_login(username: str = Form(...), password: str = Form(...)):
+async def admin_login(request: Request, username: str = Form(...), password: str = Form(...)):
+    if not rate_limit_check('login:' + client_ip(request), max_hits=10, window_sec=300):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, 'too many login attempts; retry in 5 min')
     if not (constant_time_eq(username, ADMIN_USER) and constant_time_eq(password, ADMIN_PASSWORD)):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, 'bad credentials')
     token = signer.dumps({'u': ADMIN_USER, 't': int(time.time())})
@@ -365,22 +386,25 @@ async def list_events(
     return out
 
 
+ALLOWED_ACTIONS = {'lock_workstation', 'shutdown', 'reboot', 'logoff',
+                   'kill_process', 'collect_proclist', 'uninstall', 'self_test',
+                   'collect_usb_list', 'collect_net_list'}
+
+
 @app.post('/admin/commands')
 async def create_command(cmd: CommandCreate, user: str = Depends(admin_required)):
-    allowed = {'lock_workstation', 'shutdown', 'reboot', 'logoff', 'run_cmd',
-               'kill_process', 'collect_proclist', 'uninstall', 'self_test',
-               'collect_usb_list', 'collect_net_list'}
-    if cmd.action not in allowed:
-        raise HTTPException(400, f'action must be one of {sorted(allowed)}')
+    if cmd.action not in ALLOWED_ACTIONS:
+        raise HTTPException(400, f'action must be one of {sorted(ALLOWED_ACTIONS)}')
     nonce = secrets.token_hex(16)
-    sig = sign_command(cmd.device_id, cmd.action, cmd.args, nonce)
+    issued_at = int(time.time())
+    sig = sign_command(cmd.device_id, cmd.action, cmd.args, nonce, issued_at)
     with db() as conn:
         exists = conn.execute('SELECT 1 FROM devices WHERE device_id=?', (cmd.device_id,)).fetchone()
         if not exists:
             raise HTTPException(404, 'device not found')
         cur = conn.execute(
             'INSERT INTO commands(device_id, created_at, action, args, nonce, signature) VALUES(?,?,?,?,?,?)',
-            (cmd.device_id, int(time.time()), cmd.action, json.dumps(cmd.args), nonce, sig),
+            (cmd.device_id, issued_at, cmd.action, json.dumps(cmd.args), nonce, sig),
         )
         cmd_id = cur.lastrowid
     return {'ok': True, 'command_id': cmd_id}
@@ -460,7 +484,9 @@ async def admin_stream(request: Request, user: str = Depends(admin_required)):
 
 
 @app.post('/agent/enroll')
-async def agent_enroll(req: EnrollReq):
+async def agent_enroll(request: Request, req: EnrollReq):
+    if not rate_limit_check('enroll:' + client_ip(request), max_hits=5, window_sec=3600):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, 'enrollment rate limited; retry in 1 hour')
     if not hmac.compare_digest(req.enroll_secret.encode(), ENROLL_SECRET.encode()):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, 'bad enroll secret')
     try:
@@ -539,7 +565,7 @@ async def agent_heartbeat(hb: Heartbeat, device: sqlite3.Row = Depends(agent_req
             'args': json.loads(r['args']),
             'nonce': r['nonce'],
             'signature': base64.b64encode(r['signature']).decode(),
-            'created_at': r['created_at'],
+            'issued_at': r['created_at'],
         })
     policy = {
         'version': policy_row['version'] if policy_row else 0,

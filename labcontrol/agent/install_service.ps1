@@ -89,16 +89,20 @@ sc.exe failure     $ServiceName reset= 86400 actions= restart/5000/restart/10000
 sc.exe failureflag $ServiceName 1 | Out-Null
 
 # --- Anti-tamper hardening ---
+# Use well-known SIDs so ACL lines work on every Windows locale (ID, ES, JA, ...).
+# *S-1-5-18  = SYSTEM
+# *S-1-5-32-544 = Administrators
+# *S-1-5-32-545 = Users
 
 # 1. Install dir ACL: Users=ReadExecute, Admins/SYSTEM=Full. Deny write/delete/attr for Users.
 icacls $InstallDir /inheritance:r | Out-Null
-icacls $InstallDir /grant:r "NT AUTHORITY\SYSTEM:(OI)(CI)F" "BUILTIN\Administrators:(OI)(CI)F" "BUILTIN\Users:(OI)(CI)RX" | Out-Null
-icacls $InstallDir /deny  "BUILTIN\Users:(OI)(CI)(DE,WD,AD,WDAC,WO)" | Out-Null
+icacls $InstallDir /grant:r "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" "*S-1-5-32-545:(OI)(CI)RX" | Out-Null
+icacls $InstallDir /deny  "*S-1-5-32-545:(OI)(CI)(DE,WD,AD,WDAC,WO)" | Out-Null
 
 # 2. Data dir ACL: SYSTEM/Admins full; Users denied entirely (telemetry + token kept private).
 icacls $DataDir /inheritance:r | Out-Null
-icacls $DataDir /grant:r "NT AUTHORITY\SYSTEM:(OI)(CI)F" "BUILTIN\Administrators:(OI)(CI)F" | Out-Null
-icacls $DataDir /deny  "BUILTIN\Users:(OI)(CI)F" | Out-Null
+icacls $DataDir /grant:r "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" | Out-Null
+icacls $DataDir /deny  "*S-1-5-32-545:(OI)(CI)F" | Out-Null
 
 # 3. Service SDDL: Authenticated Users query-only; no Stop/Pause/Config/Delete for non-admin.
 $svcSddl = "D:(A;;CCLCRPRC;;;AU)(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)S:(AU;FA;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;WD)"
@@ -112,19 +116,23 @@ schtasks.exe /Create /TN $WatchdogTask /SC MINUTE /MO $WatchdogMinutes /RL HIGHE
 $taskPath = "$env:SystemRoot\System32\Tasks\$WatchdogTask"
 if (Test-Path $taskPath) {
   icacls $taskPath /inheritance:r | Out-Null
-  icacls $taskPath /grant:r "NT AUTHORITY\SYSTEM:F" "BUILTIN\Administrators:F" | Out-Null
+  icacls $taskPath /grant:r "*S-1-5-18:F" "*S-1-5-32-544:F" | Out-Null
 }
 
 # 5. Lock the service registry key so standard users cannot read secret paths.
+# Use SIDs directly so this works on every Windows locale.
 $svcRegPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
 if (Test-Path $svcRegPath) {
+  $sidSystem = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')
+  $sidAdmins = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
+  $sidUsers  = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-545')
   $acl = Get-Acl $svcRegPath
   $acl.SetAccessRuleProtection($true, $false)
   foreach ($r in @($acl.Access)) { $acl.RemoveAccessRule($r) | Out-Null }
   $rules = @(
-    (New-Object System.Security.AccessControl.RegistryAccessRule("NT AUTHORITY\SYSTEM","FullControl","ContainerInherit","None","Allow")),
-    (New-Object System.Security.AccessControl.RegistryAccessRule("BUILTIN\Administrators","FullControl","ContainerInherit","None","Allow")),
-    (New-Object System.Security.AccessControl.RegistryAccessRule("BUILTIN\Users","ReadKey","None","None","Allow"))
+    (New-Object System.Security.AccessControl.RegistryAccessRule($sidSystem,"FullControl","ContainerInherit","None","Allow")),
+    (New-Object System.Security.AccessControl.RegistryAccessRule($sidAdmins,"FullControl","ContainerInherit","None","Allow")),
+    (New-Object System.Security.AccessControl.RegistryAccessRule($sidUsers,"ReadKey","None","None","Allow"))
   )
   foreach ($r in $rules) { $acl.AddAccessRule($r) }
   Set-Acl $svcRegPath $acl

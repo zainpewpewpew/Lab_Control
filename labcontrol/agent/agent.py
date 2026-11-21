@@ -125,6 +125,8 @@ def enroll(server_url: str, enroll_secret: str, employee: str | None) -> None:
 class EventSink:
     """Persistent event buffer; events survive restarts until flushed to console."""
 
+    MAX_FILE_BYTES = 8 * 1024 * 1024  # 8 MB hard cap on the on-disk queue
+
     def __init__(self, path: Path, cap: int = 10000):
         self.path = path
         self.cap = cap
@@ -136,11 +138,17 @@ class EventSink:
         if not self.path.exists():
             return
         try:
-            for line in self.path.read_text(encoding='utf-8').splitlines():
-                if line.strip():
-                    self.q.put(json.loads(line))
+            lines = self.path.read_text(encoding='utf-8').splitlines()
         except Exception:
-            pass
+            return
+        # Drop oldest if the file already exceeded cap (survives across restarts).
+        tail = lines[-self.cap:]
+        for line in tail:
+            if line.strip():
+                try:
+                    self.q.put(json.loads(line))
+                except Exception:
+                    continue
 
     def push(self, kind: str, severity: int, data: dict[str, Any]) -> None:
         if self.q.qsize() >= self.cap:
@@ -154,6 +162,18 @@ class EventSink:
         with self.lock:
             with self.path.open('a', encoding='utf-8') as f:
                 f.write(json.dumps(evt) + '\n')
+            try:
+                if self.path.stat().st_size > self.MAX_FILE_BYTES:
+                    self._rotate_locked()
+            except OSError:
+                pass
+
+    def _rotate_locked(self) -> None:
+        tmp = self.path.with_suffix('.tmp')
+        with tmp.open('w', encoding='utf-8') as f:
+            for item in list(self.q.queue):
+                f.write(json.dumps(item) + '\n')
+        tmp.replace(self.path)
 
     def drain(self, max_n: int = 200) -> list[dict[str, Any]]:
         out = []
@@ -338,11 +358,20 @@ class CommandRunner:
         self.state = state
         self.state.setdefault('seen_nonces', [])
 
+    MAX_COMMAND_AGE_SEC = 86400  # replay-window cap even if state.json is wiped
+
     def _verify(self, cmd: dict[str, Any]) -> bool:
         if cmd['nonce'] in self.state['seen_nonces']:
             return False
+        issued_at = int(cmd.get('issued_at') or 0)
+        if issued_at <= 0:
+            return False
+        age = int(time.time()) - issued_at
+        if age > self.MAX_COMMAND_AGE_SEC or age < -300:
+            return False
         payload = json.dumps(
-            {'device_id': self.device_id, 'action': cmd['action'], 'args': cmd['args'], 'nonce': cmd['nonce']},
+            {'device_id': self.device_id, 'action': cmd['action'], 'args': cmd['args'],
+             'nonce': cmd['nonce'], 'issued_at': issued_at},
             sort_keys=True, separators=(',', ':'),
         ).encode()
         try:
@@ -373,8 +402,6 @@ class CommandRunner:
                 return self._collect_proclist()
             if action == 'kill_process':
                 return self._kill_process(int(args.get('pid') or 0))
-            if action == 'run_cmd':
-                return self._run_cmd(str(args.get('cmd') or ''))
             if action == 'uninstall':
                 return self._uninstall()
             if action == 'self_test':
@@ -421,20 +448,6 @@ class CommandRunner:
             return False, 'no such pid'
         except psutil.AccessDenied:
             return False, 'access denied'
-
-    def _run_cmd(self, cmd: str) -> tuple[bool, str]:
-        cmd = cmd.strip()
-        if not cmd:
-            return False, 'empty command'
-        if any(x in cmd for x in [';', '&&', '||', '`']):
-            return False, 'disallowed shell control chars'
-        shell = IS_WINDOWS
-        try:
-            proc = subprocess.run(cmd, shell=shell, capture_output=True, text=True, timeout=30)
-            out = (proc.stdout or '') + ('\n' + proc.stderr if proc.stderr else '')
-            return proc.returncode == 0, out[:15000]
-        except subprocess.TimeoutExpired:
-            return False, 'timeout'
 
     def _collect_usb_list(self) -> tuple[bool, str]:
         if not IS_WINDOWS:
@@ -491,6 +504,14 @@ class CommandRunner:
 
         install_dir = Path(r'C:\\Program Files\\LabControl')
         data_dir = Path(r'C:\\ProgramData\\LabControl')
+        # Preserve the last agent.log for post-incident forensics before the reaper wipes DataDir.
+        archive = Path(r'C:\\Windows\\Logs\\LabControl-uninstall-' + time.strftime('%Y%m%d-%H%M%S') + '.log')
+        try:
+            if LOG_FILE.exists():
+                archive.parent.mkdir(parents=True, exist_ok=True)
+                archive.write_bytes(LOG_FILE.read_bytes())
+        except Exception as exc:
+            log.warning('log archive failed: %s', exc)
         reaper = (
             'cmd.exe /c "ping 127.0.0.1 -n 8 > NUL & '
             'sc.exe stop LabControlAgent & '

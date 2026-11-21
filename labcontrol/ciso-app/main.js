@@ -22,11 +22,15 @@ let config = loadConfig();
 
 function loadConfig() {
   try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8')); }
-  catch { return { serverUrl: '', notifyMinSeverity: 4, startMinimized: false }; }
+  catch { return { serverUrl: '', notifyMinSeverity: 4, startMinimized: false, pinnedFingerprint: '' }; }
 }
 function saveConfig() {
   fs.mkdirSync(USER_DATA, { recursive: true });
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+function normalizeFingerprint(fp) {
+  return (fp || '').toUpperCase().replace(/[^0-9A-F]/g, '');
 }
 
 function trayIconPath() {
@@ -106,7 +110,9 @@ function openSettings() {
     win.webContents.send('settings:current', config);
   });
   const handler = (e, newCfg) => {
+    const serverChanged = newCfg.serverUrl && newCfg.serverUrl !== config.serverUrl;
     config = { ...config, ...newCfg };
+    if (serverChanged || newCfg.clearPin) config.pinnedFingerprint = '';
     saveConfig();
     win.close();
     if (mainWindow) mainWindow.loadURL(config.serverUrl);
@@ -142,10 +148,25 @@ function createMainWindow() {
       else app.quit();
     });
   });
-  mainWindow.webContents.on('certificate-error', (e, _url, _err, _cert, callback) => {
-    // Allow the self-signed cert ONLY for the configured console URL.
-    if (_url.startsWith(config.serverUrl)) { e.preventDefault(); callback(true); }
-    else callback(false);
+  mainWindow.webContents.on('certificate-error', (e, url, _err, cert, callback) => {
+    // Pin by SHA-256 fingerprint for the configured console URL only.
+    // First-run TOFU: no pinned fingerprint → store the current cert's and accept once.
+    if (!url.startsWith(config.serverUrl)) return callback(false);
+    const seen = normalizeFingerprint(cert && cert.fingerprint);
+    const pinned = normalizeFingerprint(config.pinnedFingerprint);
+    if (!seen) return callback(false);
+    if (!pinned) {
+      config.pinnedFingerprint = seen;
+      saveConfig();
+      e.preventDefault(); return callback(true);
+    }
+    if (pinned === seen) { e.preventDefault(); return callback(true); }
+    dialog.showErrorBox(
+      'LabControl — certificate changed',
+      'Pinned fingerprint:\n' + pinned + '\n\nServer presented:\n' + seen +
+      '\n\nConnection refused. If this change is intentional, clear the pinned fingerprint from Server Settings.'
+    );
+    callback(false);
   });
   mainWindow.on('close', (e) => {
     if (!app.isQuitting) { e.preventDefault(); mainWindow.hide(); }
