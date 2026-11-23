@@ -56,6 +56,26 @@ function buildMenu() {
       { type: 'separator' },
       isMac ? { role: 'close' } : { role: 'quit' },
     ]},
+    // Standard Edit menu — required for Cmd+C / Cmd+V / Cmd+X / Cmd+A
+    // shortcuts to route to the focused webContents on macOS. Without it,
+    // the renderer's <input> fields silently swallow paste requests.
+    { label: 'Edit', submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      ...(isMac ? [
+        { role: 'pasteAndMatchStyle' },
+        { role: 'delete' },
+        { role: 'selectAll' },
+      ] : [
+        { role: 'delete' },
+        { type: 'separator' },
+        { role: 'selectAll' },
+      ]),
+    ]},
     { label: 'View', submenu: [
       { role: 'toggleDevTools' }, { role: 'resetZoom' },
       { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' },
