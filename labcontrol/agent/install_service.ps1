@@ -17,6 +17,7 @@ param(
   [Parameter(Mandatory=$true)][string]$EnrollSecret,
   [string]$Employee        = $env:USERNAME,
   [string]$AgentExe        = "",
+  [string]$CaCert          = "",
   [string]$PythonExe       = "C:\Program Files\Python311\python.exe",
   [string]$InstallDir      = "C:\Program Files\CadenceSec",
   [string]$DataDir         = "C:\ProgramData\CadenceSec",
@@ -42,6 +43,13 @@ if ($AgentExe -ne "") {
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path $DataDir    | Out-Null
+
+# Ship the self-signed console cert next to the agent, so httpx pins TLS
+# verification to this one CA without touching the OS trust store.
+if ($CaCert -ne "") {
+  if (-not (Test-Path $CaCert)) { throw "Console cert tidak ditemukan: $CaCert" }
+  Copy-Item -Force $CaCert "$DataDir\console-cert.pem"
+}
 
 if ($useExe) {
   Copy-Item -Force $AgentExe "$InstallDir\agent.exe"

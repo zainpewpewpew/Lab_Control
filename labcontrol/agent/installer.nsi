@@ -135,8 +135,13 @@ Section "Install"
     Pop $0
   ${EndIf}
 
+  StrCpy $2 ""
+  ${If} ${FileExists} "$TEMP\CadenceSecSetup\console-cert.pem"
+    StrCpy $2 ' -CaCert "$TEMP\CadenceSecSetup\console-cert.pem"'
+  ${EndIf}
+
   DetailPrint "Running install_service.ps1 (service + hardening)…"
-  StrCpy $0 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$TEMP\CadenceSecSetup\install_service.ps1" -AgentExe "$TEMP\CadenceSecSetup\agent.exe" -ServerUrl "$ServerUrl" -EnrollSecret "$EnrollSecret" -Employee "$EmployeeName"'
+  StrCpy $0 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$TEMP\CadenceSecSetup\install_service.ps1" -AgentExe "$TEMP\CadenceSecSetup\agent.exe" -ServerUrl "$ServerUrl" -EnrollSecret "$EnrollSecret" -Employee "$EmployeeName"$2'
   nsExec::ExecToLog $0
   Pop $1
   ${If} $1 != 0

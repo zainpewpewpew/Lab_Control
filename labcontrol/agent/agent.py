@@ -45,6 +45,15 @@ KEY_FILE = DATA_DIR / 'device.key'
 STATE_FILE = DATA_DIR / 'state.json'
 LOG_FILE = DATA_DIR / 'agent.log'
 QUEUE_FILE = DATA_DIR / 'events.jsonl'
+CA_CERT_FILE = DATA_DIR / 'console-cert.pem'
+
+
+def _httpx_verify() -> Any:
+    # Use the console cert shipped alongside the agent (install_service.ps1
+    # places it in DATA_DIR) as the sole TLS trust anchor. Falls back to the
+    # system trust store only if the file is absent — e.g. if the console is
+    # ever moved behind a publicly trusted CA.
+    return str(CA_CERT_FILE) if CA_CERT_FILE.exists() else True
 
 log = logging.getLogger('cadencesec')
 
@@ -187,7 +196,7 @@ def enroll(server_url: str, enroll_secret: str, employee: str | None) -> None:
         'os_build': os_build,
         'pubkey': device_pubkey_b64(key),
     }
-    with httpx.Client(timeout=15) as client:
+    with httpx.Client(timeout=15, verify=_httpx_verify()) as client:
         r = client.post(server_url.rstrip('/') + '/agent/enroll', json=payload)
     if r.status_code != 200:
         raise SystemExit(f'enroll failed: {r.status_code} {r.text}')
@@ -610,6 +619,7 @@ class AgentLoop:
             base_url=self.cfg['server_url'],
             headers={'Authorization': f'Bearer {self.cfg["token"]}', 'X-Device-Id': self.cfg['device_id']},
             timeout=15,
+            verify=_httpx_verify(),
         )
 
     def _heartbeat(self, client: httpx.Client) -> None:
