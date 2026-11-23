@@ -3,51 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LabControl - CISO Console</title>
+<title>CadenceSec — Console</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230F172A'/><g stroke='%2314B8A6' stroke-width='2.5' stroke-linecap='round' fill='none'><path d='M23 9 Q10 9 10 16 Q10 23 23 23'/><path d='M14 13 h4'/><path d='M14 19 h4'/></g></svg>">
 <style>
-:root { --bg:#0b1020; --panel:#121a33; --border:#222c4d; --fg:#e6ecff; --mut:#9aa6cc; --ok:#6cf; --warn:#fc6; --err:#f66; --acc:#7cf; }
-*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 ui-monospace,Menlo,Consolas,monospace}
-header{display:flex;gap:12px;align-items:center;padding:10px 14px;background:#0a0f26;border-bottom:1px solid var(--border)}
-header h1{font-size:15px;margin:0;letter-spacing:1px;color:var(--acc)}
-header .live{color:var(--mut);margin-left:auto}
-.grid{display:grid;grid-template-columns:320px 1fr 380px;gap:10px;padding:10px;height:calc(100vh - 44px)}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;display:flex;flex-direction:column;overflow:hidden}
-.panel h2{margin:0;padding:8px 12px;font-size:12px;letter-spacing:1px;color:var(--mut);border-bottom:1px solid var(--border);text-transform:uppercase}
+:root {
+  --bg:#0B1220; --panel:#111B2E; --panel-2:#0F172A; --border:#1F2A44;
+  --fg:#E6ECF8; --mut:#8EA1C1; --acc:#14B8A6; --acc-strong:#2DD4BF;
+  --cobalt:#2563EB; --ok:#10B981; --warn:#F59E0B; --err:#F43F5E;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 var(--font-ui);-webkit-font-smoothing:antialiased}
+header{display:flex;gap:14px;align-items:center;padding:10px 16px;background:var(--panel-2);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand svg{display:block}
+.brand .wordmark{font-weight:600;font-size:15px;letter-spacing:0.3px;color:var(--fg)}
+.brand .wordmark em{font-style:normal;font-weight:400;color:var(--acc);margin-left:2px}
+.tagline{color:var(--mut);font-size:12px;letter-spacing:0.2px;margin-left:4px;border-left:1px solid var(--border);padding-left:12px}
+header .live{color:var(--mut);margin-left:auto;font-size:12px}
+.grid{display:grid;grid-template-columns:320px 1fr 380px;gap:12px;padding:12px;height:calc(100vh - 48px)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
+.panel h2{margin:0;padding:10px 14px;font-size:11px;letter-spacing:1.2px;font-weight:600;color:var(--mut);border-bottom:1px solid var(--border);text-transform:uppercase}
 .panel .body{overflow:auto;padding:4px 0;flex:1}
-.row{padding:8px 12px;border-bottom:1px solid #1a2244;cursor:pointer}
-.row:hover{background:#19224a}
-.row.active{background:#1c2a5c}
+.row{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 120ms}
+.row:hover{background:#17223B}
+.row.active{background:#1A2A4A;box-shadow:inset 3px 0 0 var(--acc)}
 .dev-name{font-weight:600}
 .dev-meta{color:var(--mut);font-size:12px}
-.event{padding:6px 12px;border-bottom:1px solid #1a2244;font-size:12.5px}
-.event .k{color:var(--acc)} .event .sev{float:right;padding:0 6px;border-radius:3px;font-size:11px}
-.sev-0,.sev-1{background:#1a3a5c;color:#9cf} .sev-2,.sev-3{background:#5c4a0f;color:#fc6}
-.sev-4,.sev-5{background:#5c2f1a;color:#fa7} .sev-6,.sev-7,.sev-8,.sev-9,.sev-10{background:#5c1a1a;color:#f99}
-.event .t{color:var(--mut);font-size:11px}
-.event pre{margin:4px 0 0 0;white-space:pre-wrap;word-break:break-word;color:#cfd6ea;font-size:12px}
-.actions{padding:10px 12px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid var(--border)}
-.actions button{background:#20306c;color:var(--fg);border:1px solid #2a3c80;border-radius:4px;padding:6px 10px;cursor:pointer;font:inherit}
-.actions button:hover{background:#2a3c80}
-.actions button.danger{background:#5c1a1a;border-color:#7a2525} .actions button.danger:hover{background:#7a2525}
-.policy{padding:10px 12px}
-.policy textarea{width:100%;height:220px;background:#0a0f26;color:var(--fg);border:1px solid var(--border);border-radius:4px;font:12px ui-monospace,Menlo,Consolas,monospace;padding:6px}
-#login{position:fixed;inset:0;background:rgba(5,8,20,.95);display:flex;align-items:center;justify-content:center;z-index:9}
-#login form{background:var(--panel);padding:24px;border-radius:8px;border:1px solid var(--border);display:flex;flex-direction:column;gap:10px;width:300px}
-#login input{background:#0a0f26;color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:8px;font:inherit}
-#login button{background:#20306c;color:var(--fg);border:1px solid #2a3c80;border-radius:4px;padding:8px;cursor:pointer;font:inherit}
+.event{padding:8px 14px;border-bottom:1px solid var(--border);font-size:12.5px}
+.event .k{color:var(--acc);font-weight:600}
+.event .sev{float:right;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:600;letter-spacing:0.2px}
+.sev-0,.sev-1{background:rgba(20,184,166,0.12);color:var(--acc-strong)}
+.sev-2,.sev-3{background:rgba(245,158,11,0.14);color:var(--warn)}
+.sev-4,.sev-5{background:rgba(244,63,94,0.12);color:#FDA4AF}
+.sev-6,.sev-7,.sev-8,.sev-9,.sev-10{background:rgba(244,63,94,0.22);color:var(--err)}
+.event .t{color:var(--mut);font-size:11px;margin-top:2px}
+.event pre{margin:5px 0 0 0;white-space:pre-wrap;word-break:break-word;color:#C8D3E8;font:11.5px/1.45 var(--font-mono)}
+.actions{padding:12px 14px;display:flex;flex-direction:column;gap:7px;border-bottom:1px solid var(--border)}
+.actions button{background:var(--panel-2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px 11px;cursor:pointer;font:500 13px var(--font-ui);transition:all 120ms;text-align:left}
+.actions button:hover{background:#1A2A4A;border-color:var(--acc)}
+.actions button.danger{background:rgba(244,63,94,0.08);border-color:rgba(244,63,94,0.3);color:#FDA4AF}
+.actions button.danger:hover{background:rgba(244,63,94,0.16);border-color:var(--err)}
+.policy{padding:12px 14px}
+.policy textarea{width:100%;height:220px;background:var(--panel-2);color:var(--fg);border:1px solid var(--border);border-radius:6px;font:12px/1.5 var(--font-mono);padding:8px}
+.policy textarea:focus{outline:none;border-color:var(--acc)}
+#save-policy{margin-top:8px;background:var(--acc);border:1px solid var(--acc-strong);color:#042F2A;border-radius:6px;padding:7px 14px;cursor:pointer;font:600 13px var(--font-ui);letter-spacing:0.2px}
+#save-policy:hover{background:var(--acc-strong)}
+#login{position:fixed;inset:0;background:rgba(7,12,24,0.97);display:flex;align-items:center;justify-content:center;z-index:9;backdrop-filter:blur(6px)}
+#login form{background:var(--panel);padding:28px;border-radius:10px;border:1px solid var(--border);display:flex;flex-direction:column;gap:12px;width:320px;box-shadow:0 20px 40px rgba(0,0,0,0.4)}
+#login h3{margin:0;font-weight:600;letter-spacing:0.2px;color:var(--fg);display:flex;align-items:center;gap:8px}
+#login input{background:var(--panel-2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:10px;font:14px var(--font-ui)}
+#login input:focus{outline:none;border-color:var(--acc)}
+#login button{background:var(--acc);border:1px solid var(--acc-strong);color:#042F2A;border-radius:6px;padding:10px;cursor:pointer;font:600 14px var(--font-ui);letter-spacing:0.3px}
+#login button:hover{background:var(--acc-strong)}
 #login .err{color:var(--err);font-size:12px;min-height:16px}
-.badge{display:inline-block;background:#1a3a5c;color:#9cf;padding:1px 6px;border-radius:3px;font-size:11px;margin-left:6px}
-.badge.off{background:#3a1a1a;color:#f99}
-.empty{color:var(--mut);padding:12px}
-input.cmdarg{width:100%;margin-top:4px;background:#0a0f26;color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font:12px ui-monospace,Menlo,Consolas,monospace}
+.badge{display:inline-block;background:rgba(16,185,129,0.14);color:var(--ok);padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px}
+.badge.off{background:rgba(244,63,94,0.14);color:var(--err)}
+.empty{color:var(--mut);padding:14px}
+input.cmdarg{width:100%;margin-top:4px;background:var(--panel-2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font:12px var(--font-mono)}
+input.cmdarg:focus{outline:none;border-color:var(--acc)}
+#logout{margin-left:12px;background:transparent;color:var(--mut);border:1px solid var(--border);border-radius:6px;padding:5px 12px;cursor:pointer;font:500 12px var(--font-ui)}
+#logout:hover{color:var(--fg);border-color:var(--acc)}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 </head>
 <body>
 <header>
-  <h1>LABCONTROL</h1>
+  <div class="brand" title="CadenceSec — Consistent endpoint control">
+    <svg width="26" height="26" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="#0F172A" stroke="#1F2A44"/>
+      <g stroke="#14B8A6" stroke-width="2.6" stroke-linecap="round" fill="none">
+        <path d="M23 9 Q10 9 10 16 Q10 23 23 23"/>
+        <path d="M14 13 h4"/>
+        <path d="M14 19 h4"/>
+      </g>
+    </svg>
+    <span class="wordmark">Cadence<em>Sec</em></span>
+  </div>
+  <span class="tagline">Consistent endpoint control &amp; policy visibility</span>
   <span id="user" class="dev-meta"></span>
-  <span class="live">stream: <span id="stream-state" class="badge off">disconnected</span></span>
-  <button id="logout" style="margin-left:12px;background:transparent;color:var(--mut);border:1px solid var(--border);border-radius:4px;padding:4px 10px;cursor:pointer">logout</button>
+  <span class="live">stream <span id="stream-state" class="badge off">disconnected</span></span>
+  <button id="logout">Sign out</button>
 </header>
 
 <div class="grid">
@@ -83,7 +122,17 @@ input.cmdarg{width:100%;margin-top:4px;background:#0a0f26;color:var(--fg);border
 
 <div id="login">
   <form id="login-form">
-    <h3 style="margin:0;color:var(--acc)">LabControl sign-in</h3>
+    <h3>
+      <svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#0F172A" stroke="#1F2A44"/>
+        <g stroke="#14B8A6" stroke-width="2.6" stroke-linecap="round" fill="none">
+          <path d="M23 9 Q10 9 10 16 Q10 23 23 23"/>
+          <path d="M14 13 h4"/>
+          <path d="M14 19 h4"/>
+        </g>
+      </svg>
+      CadenceSec sign-in
+    </h3>
     <input name="username" placeholder="admin" autocomplete="username" required>
     <input name="password" type="password" placeholder="password" autocomplete="current-password" required>
     <button type="submit">Enter</button>

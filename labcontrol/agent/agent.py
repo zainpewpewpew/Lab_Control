@@ -1,8 +1,8 @@
-"""LabControl endpoint agent (Windows 10/11).
+"""CadenceSec endpoint agent (Windows 10/11).
 
 Transparent monitoring + policy enforcement + signed remote command executor.
 No keystroke capture, no screen capture, no file-content exfiltration.
-Config: %ProgramData%\\LabControl\\config.json (created by install_service.ps1 after first enroll).
+Config: %ProgramData%\\CadenceSec\\config.json (created by install_service.ps1 after first enroll).
 Run as Windows Service via install_service.ps1, or foreground with --once for testing.
 """
 from __future__ import annotations
@@ -35,9 +35,9 @@ from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat
 
 IS_WINDOWS = platform.system() == 'Windows'
 if IS_WINDOWS:
-    DATA_DIR = Path(os.environ.get('ProgramData', r'C:\\ProgramData')) / 'LabControl'
+    DATA_DIR = Path(os.environ.get('ProgramData', r'C:\\ProgramData')) / 'CadenceSec'
 else:
-    DATA_DIR = Path(os.environ.get('LABCONTROL_DATA', str(Path.home() / '.labcontrol')))
+    DATA_DIR = Path(os.environ.get('CADENCESEC_DATA', str(Path.home() / '.cadencesec')))
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_FILE = DATA_DIR / 'config.json'
@@ -46,7 +46,7 @@ STATE_FILE = DATA_DIR / 'state.json'
 LOG_FILE = DATA_DIR / 'agent.log'
 QUEUE_FILE = DATA_DIR / 'events.jsonl'
 
-log = logging.getLogger('labcontrol')
+log = logging.getLogger('cadencesec')
 
 
 # Scrub process cmdline so that telemetry never ships credentials passed as
@@ -492,7 +492,7 @@ class CommandRunner:
     def _power(self, mode: str) -> tuple[bool, str]:
         if IS_WINDOWS:
             arg = {'shutdown': '/s', 'reboot': '/r', 'logoff': '/l'}[mode]
-            proc = subprocess.run(['shutdown', arg, '/t', '15', '/c', f'LabControl {mode} issued by CISO'],
+            proc = subprocess.run(['shutdown', arg, '/t', '15', '/c', f'CadenceSec {mode} issued by CISO'],
                                   capture_output=True, text=True)
             return proc.returncode == 0, (proc.stdout + proc.stderr).strip() or f'{mode} scheduled'
         return False, f'{mode} only supported on Windows'
@@ -556,10 +556,10 @@ class CommandRunner:
                 return False, f'cleanup error: {exc}'
             return True, 'non-windows local files removed; re-enroll required'
 
-        install_dir = Path(r'C:\\Program Files\\LabControl')
-        data_dir = Path(r'C:\\ProgramData\\LabControl')
+        install_dir = Path(r'C:\\Program Files\\CadenceSec')
+        data_dir = Path(r'C:\\ProgramData\\CadenceSec')
         # Preserve the last agent.log for post-incident forensics before the reaper wipes DataDir.
-        archive = Path(r'C:\\Windows\\Logs\\LabControl-uninstall-' + time.strftime('%Y%m%d-%H%M%S') + '.log')
+        archive = Path(r'C:\\Windows\\Logs\\CadenceSec-uninstall-' + time.strftime('%Y%m%d-%H%M%S') + '.log')
         try:
             if LOG_FILE.exists():
                 archive.parent.mkdir(parents=True, exist_ok=True)
@@ -568,9 +568,9 @@ class CommandRunner:
             log.warning('log archive failed: %s', exc)
         reaper = (
             'cmd.exe /c "ping 127.0.0.1 -n 8 > NUL & '
-            'sc.exe stop LabControlAgent & '
-            'sc.exe delete LabControlAgent & '
-            'schtasks /Delete /TN LabControlWatchdog /F & '
+            'sc.exe stop CadenceSecAgent & '
+            'sc.exe delete CadenceSecAgent & '
+            'schtasks /Delete /TN CadenceSecWatchdog /F & '
             f'rmdir /s /q \"{install_dir}\" & '
             f'rmdir /s /q \"{data_dir}\""'
         )
@@ -685,7 +685,7 @@ def cmd_enroll(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(prog='labcontrol-agent')
+    p = argparse.ArgumentParser(prog='cadencesec-agent')
     sub = p.add_subparsers(dest='cmd', required=True)
     r = sub.add_parser('run', help='Run agent loop (foreground)')
     r.add_argument('--once', action='store_true', help='Single tick then exit (debug)')

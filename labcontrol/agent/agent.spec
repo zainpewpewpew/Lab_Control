@@ -1,4 +1,4 @@
-# PyInstaller spec for LabControl agent. Produces a single `agent.exe`.
+# PyInstaller spec for CadenceSec agent. Produces a single `agent.exe`.
 # Build (on Windows, Python 3.11 x64):
 #   python -m pip install pyinstaller==6.10.0
 #   pyinstaller agent.spec --noconfirm

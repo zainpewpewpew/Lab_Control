@@ -2,27 +2,45 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>LabControl — Server Settings</title>
+<title>CadenceSec — Server Settings</title>
 <style>
-:root { --bg:#0b1020; --panel:#121a33; --border:#222c4d; --fg:#e6ecff; --mut:#9aa6cc; --acc:#7cf; }
+:root { --bg:#0B1220; --panel:#111B2E; --panel-2:#0F172A; --border:#1F2A44;
+        --fg:#E6ECF8; --mut:#8EA1C1; --acc:#14B8A6; --acc-strong:#2DD4BF; }
 body { margin:0; padding:22px; background:var(--bg); color:var(--fg);
-       font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; }
-h1 { font-size:14px; letter-spacing:1px; color:var(--acc); margin:0 0 14px 0; }
-label { display:block; margin:12px 0 4px; color:var(--mut); font-size:12px; letter-spacing:0.5px; }
-input, select { width:100%; background:#0a0f26; color:var(--fg); border:1px solid var(--border);
-                border-radius:4px; padding:7px 9px; font:inherit; box-sizing:border-box; }
+       font:13px/1.45 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+       -webkit-font-smoothing:antialiased; }
+.brand-head { display:flex; align-items:center; gap:10px; margin:0 0 16px 0; }
+.brand-head .wordmark { font-weight:600; font-size:15px; letter-spacing:0.3px; }
+.brand-head .wordmark em { font-style:normal; font-weight:400; color:var(--acc); }
+h1 { font-size:12px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:var(--mut); margin:0 0 12px 0; }
+label { display:block; margin:12px 0 4px; color:var(--mut); font-size:12px; letter-spacing:0.3px; }
+input, select { width:100%; background:var(--panel-2); color:var(--fg); border:1px solid var(--border);
+                border-radius:6px; padding:8px 10px; font:13px inherit; box-sizing:border-box; }
+input:focus, select:focus { outline:none; border-color:var(--acc); }
 .row { display:flex; gap:10px; align-items:center; margin-top:14px; }
-.row input[type=checkbox] { width:16px; height:16px; }
-.actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
-button { background:#20306c; color:var(--fg); border:1px solid #2a3c80; border-radius:4px;
-         padding:8px 16px; cursor:pointer; font:inherit; }
-button.primary { background:#1a5c2a; border-color:#2a7a3c; }
-button:hover { filter:brightness(1.1); }
+.row input[type=checkbox] { width:16px; height:16px; accent-color: var(--acc); }
+.actions { display:flex; gap:8px; justify-content:flex-end; margin-top:24px; }
+button { background:var(--panel-2); color:var(--fg); border:1px solid var(--border); border-radius:6px;
+         padding:9px 18px; cursor:pointer; font:500 13px inherit; }
+button:hover { border-color:var(--acc); }
+button.primary { background:var(--acc); border-color:var(--acc-strong); color:#042F2A; font-weight:600; }
+button.primary:hover { background:var(--acc-strong); }
 .hint { color:var(--mut); font-size:11px; margin-top:6px; }
 </style>
 </head>
 <body>
-<h1>LabControl — Server Settings</h1>
+<div class="brand-head">
+  <svg width="24" height="24" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+    <rect width="32" height="32" rx="7" fill="#0F172A" stroke="#1F2A44"/>
+    <g stroke="#14B8A6" stroke-width="2.6" stroke-linecap="round" fill="none">
+      <path d="M23 9 Q10 9 10 16 Q10 23 23 23"/>
+      <path d="M14 13 h4"/>
+      <path d="M14 19 h4"/>
+    </g>
+  </svg>
+  <span class="wordmark">Cadence<em>Sec</em></span>
+</div>
+<h1>Server Settings</h1>
 
 <label for="url">Console URL</label>
 <input id="url" type="url" placeholder="https://console.your.corp:8443" autocomplete="off">
@@ -56,7 +74,7 @@ button:hover { filter:brightness(1.1); }
 </div>
 
 <script>
-window.lc.settings.onCurrent(cfg => {
+window.cs.settings.onCurrent(cfg => {
   if (cfg.serverUrl) document.getElementById('url').value = cfg.serverUrl;
   document.getElementById('sev').value = String(cfg.notifyMinSeverity ?? 4);
   document.getElementById('mini').checked = !!cfg.startMinimized;
@@ -66,7 +84,7 @@ document.getElementById('cancel').addEventListener('click', () => window.close()
 document.getElementById('save').addEventListener('click', () => {
   const url = document.getElementById('url').value.trim();
   if (!/^https:\/\//i.test(url)) { alert('Server URL must start with https://'); return; }
-  window.lc.settings.save({
+  window.cs.settings.save({
     serverUrl: url.replace(/\/+$/,''),
     notifyMinSeverity: parseInt(document.getElementById('sev').value, 10),
     startMinimized: document.getElementById('mini').checked,

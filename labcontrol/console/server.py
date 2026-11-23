@@ -1,8 +1,8 @@
-"""LabControl console: CISO-facing endpoint-monitoring server.
+"""CadenceSec console: CISO-facing endpoint-monitoring server.
 
 Single-file FastAPI app.
 Run: uvicorn server:app --host 0.0.0.0 --port 8443 --ssl-keyfile key.pem --ssl-certfile cert.pem
-Transfer: set LC_ADMIN_PASSWORD, LC_SIGNING_KEY, LC_TELEGRAM_TOKEN, LC_TELEGRAM_CHAT_ID in env.
+Transfer: set CS_ADMIN_PASSWORD, CS_SIGNING_KEY, CS_TELEGRAM_TOKEN, CS_TELEGRAM_CHAT_ID in env.
 """
 from __future__ import annotations
 
@@ -31,25 +31,29 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parent
 STATE = ROOT / 'state'
 STATE.mkdir(exist_ok=True)
-DB_FILE = STATE / 'labcontrol.db'
+DB_FILE = STATE / 'cadencesec.db'
+LEGACY_DB_FILE = STATE / 'labcontrol.db'
+if LEGACY_DB_FILE.exists() and not DB_FILE.exists():
+    # One-shot migration from the pre-rebrand path. Pilot stage, single file.
+    LEGACY_DB_FILE.rename(DB_FILE)
 KEY_FILE = STATE / 'signing.key'
 WEB_DIR = ROOT / 'web'
 
-ADMIN_USER = os.environ.get('LC_ADMIN_USER', 'admin')
-ADMIN_PASSWORD = os.environ.get('LC_ADMIN_PASSWORD') or ''
-SESSION_SECRET = os.environ.get('LC_SESSION_SECRET') or secrets.token_hex(32)
-TELEGRAM_TOKEN = os.environ.get('LC_TELEGRAM_TOKEN', '')
-TELEGRAM_CHAT = os.environ.get('LC_TELEGRAM_CHAT_ID', '')
-ENROLL_SECRET = os.environ.get('LC_ENROLL_SECRET') or ''
+ADMIN_USER = os.environ.get('CS_ADMIN_USER', 'admin')
+ADMIN_PASSWORD = os.environ.get('CS_ADMIN_PASSWORD') or ''
+SESSION_SECRET = os.environ.get('CS_SESSION_SECRET') or secrets.token_hex(32)
+TELEGRAM_TOKEN = os.environ.get('CS_TELEGRAM_TOKEN', '')
+TELEGRAM_CHAT = os.environ.get('CS_TELEGRAM_CHAT_ID', '')
+ENROLL_SECRET = os.environ.get('CS_ENROLL_SECRET') or ''
 MAX_EVENT_BYTES = 256 * 1024
 MAX_EVENTS_PER_HEARTBEAT = 200
 
 if not ADMIN_PASSWORD:
-    raise SystemExit('Set LC_ADMIN_PASSWORD env var before starting the console.')
+    raise SystemExit('Set CS_ADMIN_PASSWORD env var before starting the console.')
 if not ENROLL_SECRET:
-    raise SystemExit('Set LC_ENROLL_SECRET env var (shared enrollment pre-key).')
+    raise SystemExit('Set CS_ENROLL_SECRET env var (shared enrollment pre-key).')
 
-signer = URLSafeSerializer(SESSION_SECRET, salt='labcontrol-session')
+signer = URLSafeSerializer(SESSION_SECRET, salt='cadencesec-session')
 
 
 # Per-IP rate limiting (in-memory; sufficient for single-worker pilot).
@@ -221,7 +225,7 @@ async def evaluate_alerts(device_id: str, kind: str, severity: int, data: dict[s
         if sub and sub not in serialized:
             continue
         text = (
-            f"<b>LabControl alert</b>\n"
+            f"<b>CadenceSec alert</b>\n"
             f"Rule: {r['name']}\n"
             f"Device: {device_id}\n"
             f"Kind: {kind}\n"
@@ -326,7 +330,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title='LabControl Console', lifespan=lifespan)
+app = FastAPI(title='CadenceSec Console', lifespan=lifespan)
 
 
 @app.get('/', response_class=HTMLResponse)

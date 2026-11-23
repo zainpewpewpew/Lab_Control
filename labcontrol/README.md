@@ -1,4 +1,4 @@
-# LabControl
+# CadenceSec
 
 Transparent employee-endpoint monitoring + policy enforcement + signed remote command, self-hosted. Nol lisensi berbayar.
 
@@ -60,12 +60,12 @@ cd labcontrol/console
 python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-export LC_ADMIN_USER=admin
-export LC_ADMIN_PASSWORD='$(openssl rand -base64 24)'
-export LC_SESSION_SECRET=$(openssl rand -hex 32)
-export LC_ENROLL_SECRET=$(openssl rand -hex 32)
-export LC_TELEGRAM_TOKEN='123456:AA...'       # opsional
-export LC_TELEGRAM_CHAT_ID='-1001234567890'   # opsional
+export CS_ADMIN_USER=admin
+export CS_ADMIN_PASSWORD='$(openssl rand -base64 24)'
+export CS_SESSION_SECRET=$(openssl rand -hex 32)
+export CS_ENROLL_SECRET=$(openssl rand -hex 32)
+export CS_TELEGRAM_TOKEN='123456:AA...'       # opsional
+export CS_TELEGRAM_CHAT_ID='-1001234567890'   # opsional
 
 openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
   -keyout key.pem -out cert.pem -subj "/CN=labcontrol"
@@ -73,7 +73,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
 uvicorn server:app --host 0.0.0.0 --port 8443 \
   --ssl-keyfile key.pem --ssl-certfile cert.pem
 ```
-Buka `https://<ip-vm>:8443` di browser. Login pakai `LC_ADMIN_USER` / `LC_ADMIN_PASSWORD`.
+Buka `https://<ip-vm>:8443` di browser. Login pakai `CS_ADMIN_USER` / `CS_ADMIN_PASSWORD`.
 
 ### Opsi 2 - Docker Compose
 ```bash
@@ -82,7 +82,7 @@ cp deploy/.env.example deploy/.env
 cd deploy && docker compose up -d
 ```
 
-Simpan `LC_ENROLL_SECRET` baik-baik — itu kunci untuk install agent di tiap endpoint. Rotasi dengan restart console + re-enroll agent lama.
+Simpan `CS_ENROLL_SECRET` baik-baik — itu kunci untuk install agent di tiap endpoint. Rotasi dengan restart console + re-enroll agent lama.
 
 ## CISO desktop app (Mac/Windows/Linux)
 Native window wrapper; tidak perlu buka browser lagi.
@@ -114,18 +114,18 @@ cd \path\to\labcontrol\agent
   -Employee 'firstname.lastname'
 ```
 Script:
-1. Copy `agent.py` + deps ke `C:\Program Files\LabControl\`.
+1. Copy `agent.py` + deps ke `C:\Program Files\CadenceSec\`.
 2. Buat venv dan install requirements.
-3. Enroll device → simpan `device_id`, bearer token, console public key ke `C:\ProgramData\LabControl\config.json`.
-4. Daftarkan Windows service `LabControlAgent` (auto-start, restart on failure).
+3. Enroll device → simpan `device_id`, bearer token, console public key ke `C:\ProgramData\CadenceSec\config.json`.
+4. Daftarkan Windows service `CadenceSecAgent` (auto-start, restart on failure).
 
 ### Anti-tamper yang dipasang install_service.ps1
 - Service berjalan sebagai `LocalSystem`.
-- ACL `C:\Program Files\LabControl\`: Users = ReadExecute, **deny** Write/Delete/ModifyPerms. Admin+SYSTEM = Full.
-- ACL `C:\ProgramData\LabControl\`: Users = **deny all**. Admin+SYSTEM = Full. Config, token, key, log, event buffer tak bisa dibaca atau dihapus user biasa.
+- ACL `C:\Program Files\CadenceSec\`: Users = ReadExecute, **deny** Write/Delete/ModifyPerms. Admin+SYSTEM = Full.
+- ACL `C:\ProgramData\CadenceSec\`: Users = **deny all**. Admin+SYSTEM = Full. Config, token, key, log, event buffer tak bisa dibaca atau dihapus user biasa.
 - Service security descriptor via `sc.exe sdset`: Authenticated Users hanya query status, tidak bisa Stop/Pause/ChangeConfig/Delete. Audit on fail.
-- Registry service key `HKLM\SYSTEM\CurrentControlSet\Services\LabControlAgent`: Users = ReadKey saja (tidak bisa lihat `ImagePath` detail).
-- Watchdog scheduled task `LabControlWatchdog` jalan tiap 2 menit sebagai SYSTEM, start service jika berhenti. Task file sendiri di-ACL agar user biasa tak bisa lihat atau edit.
+- Registry service key `HKLM\SYSTEM\CurrentControlSet\Services\CadenceSecAgent`: Users = ReadKey saja (tidak bisa lihat `ImagePath` detail).
+- Watchdog scheduled task `CadenceSecWatchdog` jalan tiap 2 menit sebagai SYSTEM, start service jika berhenti. Task file sendiri di-ACL agar user biasa tak bisa lihat atau edit.
 - Service failure action: auto-restart 3x dengan backoff 5s/10s/30s.
 
 ### Siapa yang bisa stop/uninstall
@@ -177,10 +177,10 @@ POST /admin/commands
 Kalau di kemudian hari butuh salah satu di atas, harus ada consent tegas tertulis tiap karyawan dan DPO sign-off sesuai UU PDP.
 
 ## Rotasi secret & disaster recovery
-- `LC_ENROLL_SECRET`: ganti di env + restart console. Agent lama tetap jalan (pakai bearer token). Agent baru butuh secret baru.
-- `LC_SESSION_SECRET`: ganti → semua sesi admin logout.
+- `CS_ENROLL_SECRET`: ganti di env + restart console. Agent lama tetap jalan (pakai bearer token). Agent baru butuh secret baru.
+- `CS_SESSION_SECRET`: ganti → semua sesi admin logout.
 - Signing key console di `console/state/signing.key` (Ed25519). Hilang = semua agent tolak command (nggak bisa verify). Backup file ini ke secret manager perusahaan.
-- DB: `console/state/labcontrol.db`. Backup rutin.
+- DB: `console/state/cadencesec.db`. Backup rutin.
 
 ## Threat model singkat
 | Vector | Mitigasi |
@@ -199,14 +199,14 @@ Kalau di kemudian hari butuh salah satu di atas, harus ada consent tegas tertuli
 - GeoIP lookup di console untuk `net_connect` events.
 - Backfill compliance report (CIS, PCI) seperti Wazuh.
 - macOS + Linux agent (osquery binding).
-- Anti-tamper: ACL deny-write di `C:\Program Files\LabControl\`, SHA-256 integrity check per startup, alert `agent_tamper` kalau mismatch.
+- Anti-tamper: ACL deny-write di `C:\Program Files\CadenceSec\`, SHA-256 integrity check per startup, alert `agent_tamper` kalau mismatch.
 
 ## Transfer (nilai per-operator)
 | Variabel | Lokasi | Catatan |
 |---|---|---|
-| `LC_ADMIN_USER / PASSWORD` | env console | Credential CISO untuk login dashboard |
-| `LC_ENROLL_SECRET` | env console | Shared pre-key untuk install agent |
-| `LC_TELEGRAM_TOKEN / CHAT_ID` | env console | Dari @BotFather, chat_id dari /getUpdates |
+| `CS_ADMIN_USER / PASSWORD` | env console | Credential CISO untuk login dashboard |
+| `CS_ENROLL_SECRET` | env console | Shared pre-key untuk install agent |
+| `CS_TELEGRAM_TOKEN / CHAT_ID` | env console | Dari @BotFather, chat_id dari /getUpdates |
 | `ServerUrl` | argumen install_service.ps1 | URL HTTPS console yang reachable dari endpoint |
 | `cert.pem/key.pem` | `deploy/certs/` atau console dir | Self-signed OK di LAN, Let's Encrypt untuk WAN |
 | Alert rules | tabel `alert_rules` | Edit via API `POST /admin/alert-rules` atau SQL langsung |

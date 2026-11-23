@@ -1,4 +1,4 @@
-# LabControl agent installer with anti-tamper hardening.
+# CadenceSec agent installer with anti-tamper hardening.
 # Elevated PowerShell required. Target: Windows 10/11 x64 company-owned laptops.
 # Disclosure precondition: employee has signed the Monitoring Policy. Do NOT install covertly.
 #
@@ -18,11 +18,11 @@ param(
   [string]$Employee        = $env:USERNAME,
   [string]$AgentExe        = "",
   [string]$PythonExe       = "C:\Program Files\Python311\python.exe",
-  [string]$InstallDir      = "C:\Program Files\LabControl",
-  [string]$DataDir         = "C:\ProgramData\LabControl",
-  [string]$ServiceName     = "LabControlAgent",
-  [string]$ServiceDisplay  = "LabControl Endpoint Protection",
-  [string]$WatchdogTask    = "LabControlWatchdog",
+  [string]$InstallDir      = "C:\Program Files\CadenceSec",
+  [string]$DataDir         = "C:\ProgramData\CadenceSec",
+  [string]$ServiceName     = "CadenceSecAgent",
+  [string]$ServiceDisplay  = "CadenceSec Endpoint Protection",
+  [string]$WatchdogTask    = "CadenceSecWatchdog",
   [int]$WatchdogMinutes    = 2
 )
 $ErrorActionPreference = 'Stop'
@@ -60,7 +60,7 @@ if ($useExe) {
   $runBin    = "`"$venvPy`" `"$InstallDir\agent.py`" run"
 }
 
-# One-time enrollment (writes config + keypair to %ProgramData%\LabControl\).
+# One-time enrollment (writes config + keypair to %ProgramData%\CadenceSec\).
 if ($useExe) {
   & $binary enroll --server-url $ServerUrl --enroll-secret $EnrollSecret --employee $Employee
 } else {
@@ -145,7 +145,7 @@ $st = (Get-Service -Name $ServiceName).Status
 $mode = if ($useExe) { "single-file exe" } else { "python venv" }
 
 Write-Host ""
-Write-Host "LabControl agent installed ($mode mode)."
+Write-Host "CadenceSec agent installed ($mode mode)."
 Write-Host "  Service   : $ServiceName ($ServiceDisplay) — status: $st"
 Write-Host "  Watchdog  : $WatchdogTask (every $WatchdogMinutes min as SYSTEM)"
 Write-Host "  Install   : $InstallDir   (Users ACL: ReadExecute, deny write/delete)"

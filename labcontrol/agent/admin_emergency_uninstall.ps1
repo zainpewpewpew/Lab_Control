@@ -4,10 +4,10 @@
 #
 # Elevated PowerShell required.
 param(
-  [string]$InstallDir    = "C:\Program Files\LabControl",
-  [string]$DataDir       = "C:\ProgramData\LabControl",
-  [string]$ServiceName   = "LabControlAgent",
-  [string]$WatchdogTask  = "LabControlWatchdog",
+  [string]$InstallDir    = "C:\Program Files\CadenceSec",
+  [string]$DataDir       = "C:\ProgramData\CadenceSec",
+  [string]$ServiceName   = "CadenceSecAgent",
+  [string]$WatchdogTask  = "CadenceSecWatchdog",
   [switch]$KeepData
 )
 $ErrorActionPreference = 'Stop'
@@ -16,7 +16,7 @@ if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
   throw "Run elevated (Administrator)."
 }
 
-Write-Warning "You are removing LabControl locally. This breaks the tamper seal; the last heartbeat may or may not have reached the console."
+Write-Warning "You are removing CadenceSec locally. This breaks the tamper seal; the last heartbeat may or may not have reached the console."
 $ans = Read-Host "Type UNINSTALL to continue"
 if ($ans -ne 'UNINSTALL') { Write-Host "Aborted."; return }
 
@@ -35,4 +35,4 @@ if (-not $KeepData -and (Test-Path $DataDir)) {
   icacls $DataDir /reset /T /C /Q | Out-Null
   Remove-Item -Recurse -Force $DataDir
 }
-Write-Host "LabControl removed locally. Notify the CISO so the device record can be retired at the console."
+Write-Host "CadenceSec removed locally. Notify the CISO so the device record can be retired at the console."

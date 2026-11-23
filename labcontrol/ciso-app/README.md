@@ -1,4 +1,4 @@
-# LabControl CISO Desktop App
+# CadenceSec CISO Desktop App
 
 Native Mac/Windows/Linux shell untuk CISO console. Membungkus dashboard FastAPI
 dalam window native dengan menu bar, system tray, dan notifikasi OS.
@@ -27,8 +27,8 @@ Untuk Mac notarization + Windows code signing, isi env `CSC_LINK`, `CSC_KEY_PASS
 `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` sesuai docs electron-builder, lalu rerun.
 
 ## Fitur native
-- **Settings persisten**: `~/Library/Application Support/LabControl/config.json` (macOS),
-  `%APPDATA%\LabControl\config.json` (Windows).
+- **Settings persisten**: `~/Library/Application Support/CadenceSec/config.json` (macOS),
+  `%APPDATA%\CadenceSec\config.json` (Windows).
 - **System tray**: dot icon di menu bar dengan unread counter.
 - **Native notification**: tiap event SSE dengan `severity >= notifyMinSeverity` muncul
   sebagai notifikasi OS. Klik notifikasi → fokus ke window.

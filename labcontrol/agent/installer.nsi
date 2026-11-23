@@ -1,4 +1,4 @@
-; NSIS installer for LabControl Windows Agent.
+; NSIS installer for CadenceSec Windows Agent.
 ; Produces a single self-contained setup.exe that:
 ;   - Requests elevation (UAC)
 ;   - Prompts for console URL, enroll secret, employee name
@@ -27,11 +27,11 @@
   !define INSTALL_PS1 "install_service.ps1"
 !endif
 
-Name "LabControl Agent"
-OutFile "LabControl-Agent-Setup.exe"
+Name "CadenceSec Agent"
+OutFile "CadenceSec-Agent-Setup.exe"
 Unicode true
 RequestExecutionLevel admin
-InstallDir "$PROGRAMFILES64\LabControl"
+InstallDir "$PROGRAMFILES64\CadenceSec"
 ShowInstDetails show
 ShowUninstDetails show
 
@@ -61,7 +61,7 @@ Page custom EnrollmentPage EnrollmentPageLeave
 !insertmacro MUI_LANGUAGE "English"
 
 Function EnrollmentPage
-  !insertmacro MUI_HEADER_TEXT "LabControl enrollment" "Isi URL console dan enroll secret yang diberikan CISO."
+  !insertmacro MUI_HEADER_TEXT "CadenceSec enrollment" "Isi URL console dan enroll secret yang diberikan CISO."
   nsDialogs::Create 1018
   Pop $Dlg
   ${If} $Dlg == error
@@ -83,7 +83,7 @@ Function EnrollmentPage
   ${NSD_CreateText} 0 82u 100% 12u "$USERNAME"
   Pop $EdtEmp
 
-  ${NSD_CreateLabel} 0 110u 100% 20u "Install membutuhkan hak Administrator dan akan menginstall service LabControlEndpoint Protection beserta watchdog. Kebijakan Monitoring Policy wajib sudah ditandatangani."
+  ${NSD_CreateLabel} 0 110u 100% 20u "Install membutuhkan hak Administrator dan akan menginstall service CadenceSec Endpoint Protection beserta watchdog. Kebijakan Monitoring Policy wajib sudah ditandatangani."
 
   nsDialogs::Show
 FunctionEnd
@@ -113,20 +113,20 @@ Function EnrollmentPageLeave
 FunctionEnd
 
 Section "Install"
-  SetOutPath "$TEMP\LabControlSetup"
+  SetOutPath "$TEMP\CadenceSecSetup"
   File "/oname=agent.exe" "${AGENT_EXE}"
   File "${INSTALL_PS1}"
   File /nonfatal "admin_emergency_uninstall.ps1"
   File /nonfatal "console-cert.pem"
 
-  ${If} ${FileExists} "$TEMP\LabControlSetup\console-cert.pem"
+  ${If} ${FileExists} "$TEMP\CadenceSecSetup\console-cert.pem"
     DetailPrint "Importing console certificate to Trusted Root…"
-    nsExec::ExecToLog 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Import-Certificate -FilePath \"$TEMP\LabControlSetup\console-cert.pem\" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null"'
+    nsExec::ExecToLog 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Import-Certificate -FilePath \"$TEMP\CadenceSecSetup\console-cert.pem\" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null"'
     Pop $0
   ${EndIf}
 
   DetailPrint "Running install_service.ps1 (service + hardening)…"
-  StrCpy $0 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$TEMP\LabControlSetup\install_service.ps1" -AgentExe "$TEMP\LabControlSetup\agent.exe" -ServerUrl "$ServerUrl" -EnrollSecret "$EnrollSecret" -Employee "$EmployeeName"'
+  StrCpy $0 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$TEMP\CadenceSecSetup\install_service.ps1" -AgentExe "$TEMP\CadenceSecSetup\agent.exe" -ServerUrl "$ServerUrl" -EnrollSecret "$EnrollSecret" -Employee "$EmployeeName"'
   nsExec::ExecToLog $0
   Pop $1
   ${If} $1 != 0
@@ -135,15 +135,15 @@ Section "Install"
   ${EndIf}
 
   CreateDirectory "$INSTDIR"
-  CopyFiles /SILENT "$TEMP\LabControlSetup\admin_emergency_uninstall.ps1" "$INSTDIR\admin_emergency_uninstall.ps1"
+  CopyFiles /SILENT "$TEMP\CadenceSecSetup\admin_emergency_uninstall.ps1" "$INSTDIR\admin_emergency_uninstall.ps1"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LabControlAgent" "DisplayName"      "LabControl Endpoint Protection"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LabControlAgent" "DisplayVersion"  "0.1.0"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LabControlAgent" "Publisher"       "LabControl"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LabControlAgent" "UninstallString" "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "DisplayName"      "CadenceSec Endpoint Protection"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "DisplayVersion"  "0.1.0"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "Publisher"       "CadenceSec"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "UninstallString" "$INSTDIR\Uninstall.exe"
 
-  RMDir /r "$TEMP\LabControlSetup"
+  RMDir /r "$TEMP\CadenceSecSetup"
 SectionEnd
 
 Section "Uninstall"
@@ -152,5 +152,5 @@ Section "Uninstall"
   Pop $0
   Delete "$INSTDIR\Uninstall.exe"
   RMDir  "$INSTDIR"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\LabControlAgent"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent"
 SectionEnd

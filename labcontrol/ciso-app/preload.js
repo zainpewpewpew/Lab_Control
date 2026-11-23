@@ -1,14 +1,14 @@
 // Preload: runs in the renderer with contextIsolation ON.
 // Exposes:
-//   window.lc.settings.save({serverUrl, notifyMinSeverity, startMinimized})
-//   window.lc.settings.onCurrent(cb)
-//   window.lc.clearBadge()
+//   window.cs.settings.save({serverUrl, notifyMinSeverity, startMinimized})
+//   window.cs.settings.onCurrent(cb)
+//   window.cs.clearBadge()
 // And wraps EventSource so every incoming SSE event is also forwarded to the main process
 // for native OS notifications on severity >= notifyMinSeverity.
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('lc', {
+contextBridge.exposeInMainWorld('cs', {
   settings: {
     save: (cfg) => ipcRenderer.send('settings:save', cfg),
     onCurrent: (cb) => ipcRenderer.on('settings:current', (_e, cfg) => cb(cfg)),

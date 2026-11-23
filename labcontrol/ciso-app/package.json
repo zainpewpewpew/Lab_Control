@@ -1,9 +1,9 @@
 {
-  "name": "labcontrol-ciso",
+  "name": "cadencesec-ciso",
   "version": "0.1.0",
-  "description": "LabControl CISO desktop console (native Mac/Windows/Linux shell)",
+  "description": "CadenceSec CISO desktop console (native Mac/Windows/Linux shell)",
   "main": "main.js",
-  "author": "LabControl",
+  "author": "CadenceSec",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -14,8 +14,8 @@
     "dist:win": "electron-builder --win"
   },
   "build": {
-    "appId": "com.yourcorp.labcontrol.ciso",
-    "productName": "LabControl",
+    "appId": "com.cadencesec.console",
+    "productName": "CadenceSec",
     "directories": { "output": "dist" },
     "afterPack": "./scripts/strip-ats.js",
     "files": [

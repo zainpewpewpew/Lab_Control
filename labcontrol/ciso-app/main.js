@@ -1,4 +1,4 @@
-// LabControl CISO desktop console (Electron main process).
+// CadenceSec CISO desktop console (Electron main process).
 // Wraps the FastAPI console in a native Mac/Windows window with:
 //   - persistent server URL + session
 //   - native application menu
@@ -64,7 +64,7 @@ function buildMenu() {
     { label: 'Window', submenu: [{ role: 'minimize' }, ...(isMac ? [{ role: 'front' }] : [])] },
     { label: 'Help', submenu: [
       { label: 'Open Logs Folder', click: () => shell.openPath(USER_DATA) },
-      { label: 'LabControl Docs', click: () => shell.openExternal('https://labcontrol.local/docs') },
+      { label: 'CadenceSec Docs', click: () => shell.openExternal('https://cadencesec.local/docs') },
     ]},
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -74,7 +74,7 @@ function buildTray() {
   const iconPath = trayIconPath();
   const icon = iconPath ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
   tray = new Tray(icon);
-  tray.setToolTip('LabControl CISO');
+  tray.setToolTip('CadenceSec CISO');
   updateTray();
   tray.on('click', () => { showMain(); });
   tray.setContextMenu(Menu.buildFromTemplate([
@@ -102,7 +102,7 @@ function showMain() {
 function openSettings() {
   const win = new BrowserWindow({
     width: 480, height: 340, resizable: false, modal: !!mainWindow, parent: mainWindow,
-    title: 'LabControl — Server Settings',
+    title: 'CadenceSec — Server Settings',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
   win.loadFile(path.join(__dirname, 'setup.html'));
@@ -126,7 +126,7 @@ function createMainWindow() {
   if (!config.serverUrl) { openSettings(); return; }
   mainWindow = new BrowserWindow({
     width: 1400, height: 900, minWidth: 1000, minHeight: 640,
-    title: 'LabControl — CISO Console',
+    title: 'CadenceSec — CISO Console',
     backgroundColor: '#0b1020',
     show: !config.startMinimized,
     webPreferences: {
@@ -162,7 +162,7 @@ function createMainWindow() {
     }
     if (pinned === seen) { e.preventDefault(); return callback(true); }
     dialog.showErrorBox(
-      'LabControl — certificate changed',
+      'CadenceSec — certificate changed',
       'Pinned fingerprint:\n' + pinned + '\n\nServer presented:\n' + seen +
       '\n\nConnection refused. If this change is intentional, clear the pinned fingerprint from Server Settings.'
     );
@@ -181,7 +181,7 @@ ipcMain.on('alert:event', (_e, payload) => {
   updateTray();
   if (Notification.isSupported()) {
     new Notification({
-      title: `LabControl alert — sev ${sev}`,
+      title: `CadenceSec alert — sev ${sev}`,
       body: `${payload.kind} · ${payload.hostname || payload.device_id}\n${truncate(JSON.stringify(payload.data || {}), 160)}`,
       urgency: sev >= 7 ? 'critical' : 'normal',
       silent: false,

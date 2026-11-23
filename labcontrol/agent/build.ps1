@@ -1,4 +1,4 @@
-# Build LabControl agent.exe on Windows (10/11 x64).
+# Build CadenceSec agent.exe on Windows (10/11 x64).
 # Produces: dist\agent.exe (single-file, all deps embedded, no Python required to install).
 #
 # Usage (non-elevated is fine; elevation only needed when installing the built .exe):
