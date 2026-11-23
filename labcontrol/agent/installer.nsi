@@ -26,9 +26,19 @@
 !ifndef INSTALL_PS1
   !define INSTALL_PS1 "install_service.ps1"
 !endif
+!ifndef VERSION
+  !define VERSION "0.1.0"
+!endif
 
-Name "CadenceSec Agent"
-OutFile "CadenceSec-Agent-Setup.exe"
+Name "CadenceSec Agent ${VERSION}"
+OutFile "CadenceSec-Agent-Setup-${VERSION}.exe"
+VIProductVersion "${VERSION}.0"
+VIAddVersionKey "ProductName"     "CadenceSec Endpoint Protection"
+VIAddVersionKey "ProductVersion"  "${VERSION}"
+VIAddVersionKey "FileVersion"     "${VERSION}.0"
+VIAddVersionKey "CompanyName"     "CadenceSec"
+VIAddVersionKey "FileDescription" "CadenceSec Agent installer"
+VIAddVersionKey "LegalCopyright"  "CadenceSec"
 Unicode true
 RequestExecutionLevel admin
 InstallDir "$PROGRAMFILES64\CadenceSec"
@@ -139,7 +149,7 @@ Section "Install"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "DisplayName"      "CadenceSec Endpoint Protection"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "DisplayVersion"  "0.1.0"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "DisplayVersion"  "${VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "Publisher"       "CadenceSec"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CadenceSecAgent" "UninstallString" "$INSTDIR\Uninstall.exe"
 

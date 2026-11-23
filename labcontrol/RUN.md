@@ -5,7 +5,7 @@ Dokumen ini adalah urutan konkret menjalankan CadenceSec untuk pilot dua laptop 
 ## Prasyarat yang sudah selesai
 
 - `labcontrol/dist/CadenceSec-0.1.0.dmg` (CISO Mac app, 91 MB) sudah di-build.
-- `labcontrol/dist/CadenceSec-Agent-Setup.exe` (Windows agent installer, 22 MB) sudah di-build via GitHub Actions.
+- `labcontrol/dist/CadenceSec-Agent-Setup-0.1.0.exe` (Windows agent installer, 22 MB) sudah di-build via GitHub Actions.
 - `labcontrol/console/.env` berisi `CS_ADMIN_USER`, `CS_ADMIN_PASSWORD`, `CS_SESSION_SECRET`, `CS_ENROLL_SECRET`. File ini sensitif dan sudah di-gitignore — jangan commit.
 - `labcontrol/console/state/cert.pem` + `key.pem` sudah di-generate dengan SAN yang mencakup `127.0.0.1`, `localhost`, dan IP LAN Mac CISO (misal `192.168.0.140`).
 - Karyawan sudah tanda-tangan Employee Monitoring Policy dan DPIA sesuai UU PDP 27/2022.
@@ -53,7 +53,7 @@ Jika mau console auto-start setiap Mac boot, pasang launchd agent (file `~/Libra
 
 Lakukan ini setelah console hidup dan jaringan sudah satu LAN.
 
-1. Transfer `CadenceSec-Agent-Setup.exe` dari Mac ke laptop Windows user (USB, SMB share, atau SCP).
+1. Transfer `CadenceSec-Agent-Setup-0.1.0.exe` dari Mac ke laptop Windows user (USB, SMB share, atau SCP).
 2. Double-click file. UAC prompt muncul — pilih **Yes** untuk elevated.
 3. Wizard NSIS menanyakan tiga field:
    - **Console URL:** `https://192.168.0.140:8443` (nilai sama dengan di CISO app).

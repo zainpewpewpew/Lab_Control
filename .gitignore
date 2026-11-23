@@ -6,7 +6,7 @@ console/state/
 agent/state/
 agent/agent-config.json
 
-# LabControl secrets and generated artifacts
+# CadenceSec secrets and generated artifacts
 labcontrol/console/.env
 labcontrol/console/state/
 labcontrol/console/venv/
@@ -14,7 +14,9 @@ labcontrol/agent/dist/
 labcontrol/agent/build/
 labcontrol/agent/buildvenv/
 labcontrol/agent/*.exe
-labcontrol/agent/LabControl-Agent-Setup.exe
 labcontrol/ciso-app/node_modules/
 labcontrol/ciso-app/dist/
 labcontrol/dist/
+
+# macOS metadata
+.DS_Store

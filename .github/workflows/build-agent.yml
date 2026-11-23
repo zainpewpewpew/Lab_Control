@@ -7,6 +7,9 @@ on:
       - '.github/workflows/build-agent.yml'
   workflow_dispatch:
 
+env:
+  AGENT_VERSION: 0.1.0
+
 jobs:
   windows-setup-exe:
     runs-on: windows-latest
@@ -50,24 +53,24 @@ jobs:
             Copy-Item ..\console\state\cert.pem .\console-cert.pem
           }
 
-      - name: Build CadenceSec-Agent-Setup.exe (NSIS)
+      - name: Build CadenceSec-Agent-Setup-${{ env.AGENT_VERSION }}.exe (NSIS)
         shell: cmd
         run: |
-          "C:\Program Files (x86)\NSIS\makensis.exe" /V2 /DAGENT_EXE="dist\agent.exe" /DINSTALL_PS1="install_service.ps1" installer.nsi
+          "C:\Program Files (x86)\NSIS\makensis.exe" /V2 /DAGENT_EXE="dist\agent.exe" /DINSTALL_PS1="install_service.ps1" /DVERSION=${{ env.AGENT_VERSION }} installer.nsi
 
       - name: Hash and inspect
         run: |
-          Get-Item CadenceSec-Agent-Setup.exe | Select-Object FullName,Length,LastWriteTime
-          Get-FileHash CadenceSec-Agent-Setup.exe -Algorithm SHA256
+          Get-Item "CadenceSec-Agent-Setup-${{ env.AGENT_VERSION }}.exe" | Select-Object FullName,Length,LastWriteTime
+          Get-FileHash "CadenceSec-Agent-Setup-${{ env.AGENT_VERSION }}.exe" -Algorithm SHA256
 
       - name: Upload setup.exe
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: CadenceSec-Agent-Setup
-          path: labcontrol/agent/CadenceSec-Agent-Setup.exe
+          name: CadenceSec-Agent-Setup-${{ env.AGENT_VERSION }}
+          path: labcontrol/agent/CadenceSec-Agent-Setup-${{ env.AGENT_VERSION }}.exe
 
       - name: Upload raw agent.exe (debug)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: CadenceSec-Agent-raw-exe
+          name: CadenceSec-Agent-raw-exe-${{ env.AGENT_VERSION }}
           path: labcontrol/agent/dist/agent.exe
